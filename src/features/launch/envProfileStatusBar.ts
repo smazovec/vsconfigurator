@@ -24,7 +24,7 @@ export function ensureEnvProfileStatusBar(): vscode.StatusBarItem {
 			vscode.StatusBarAlignment.Left,
 			2
 		);
-		statusItem.name = 'Профиль запуска 1С';
+		statusItem.name = '1С: Профиль запуска';
 		statusItem.command = '1c-platform-tools.env.selectProfile';
 	}
 	return statusItem;
@@ -57,7 +57,7 @@ export function refreshEnvProfileStatusBar(visible: boolean): void {
 		: new vscode.ThemeColor('statusBarItem.warningBackground');
 	item.tooltip = new vscode.MarkdownString(
 		[
-			`**Профиль запуска 1С:** ${label}`,
+			`**1С: Профиль запуска:** ${label}`,
 			`vanessa-runner: ${versionLabel ?? 'версия не определена'}`,
 			settings.ready
 				? `Файл настроек: ${settings.fileName}`

@@ -472,7 +472,7 @@ async function selectProfile(vrunner: VRunnerManager, refresh: () => void): Prom
 		);
 
 		const picked = await vscode.window.showQuickPick(items, {
-			title: 'Профиль запуска 1С',
+			title: '1С: Профиль запуска',
 			placeHolder: 'Выберите профиль запуска',
 			ignoreFocusOut: true,
 		});

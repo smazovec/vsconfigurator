@@ -387,7 +387,7 @@ export class PlatformServerManager {
 
 		this.setState('running');
 		this.output.appendLine(`Сервер готов: ${this.currentUrls.root}`);
-		notifyQuiet(`Автономный сервер 1С запущен: ${this.currentUrls.root}`);
+		notifyQuiet(`1С: Автономный сервер запущен: ${this.currentUrls.root}`);
 	}
 
 	/**

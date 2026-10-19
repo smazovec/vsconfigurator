@@ -325,7 +325,7 @@ async function showServerMenu(manager: PlatformServerManager, debugSessions: Ser
 
 	const owner = manager.ownerRoot;
 	const picked = await vscode.window.showQuickPick(items, {
-		title: `Автономный сервер 1С: ${stateLabel(manager.state)}${owner === undefined ? '' : `, проект ${projectLabel(owner)}`}`,
+		title: `1С: Автономный сервер: ${stateLabel(manager.state)}${owner === undefined ? '' : `, проект ${projectLabel(owner)}`}`,
 		ignoreFocusOut: true,
 	});
 	if (!picked) {
@@ -416,7 +416,7 @@ export function registerPlatformServerFeature(context: vscode.ExtensionContext):
 		vscode.StatusBarAlignment.Left,
 		1
 	);
-	statusItem.name = 'Автономный сервер 1С';
+	statusItem.name = '1С: Автономный сервер';
 	statusItem.command = '1c-platform-tools.server.menu';
 
 	const refresh = (): void => {

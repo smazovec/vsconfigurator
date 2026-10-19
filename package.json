@@ -657,7 +657,7 @@
       },
       {
         "viewType": "1c-platform-tools.profileEditor",
-        "displayName": "Профиль запуска 1С",
+        "displayName": "1С: Профиль запуска",
         "selector": [
           {
             "filenamePattern": "env*.json"
