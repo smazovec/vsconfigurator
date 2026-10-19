@@ -137,7 +137,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 	{
 		groupLabel: 'Конфигурация',
 		sectionType: 'configuration',
-		defaultCollapsibleState: 'expanded',
+		defaultCollapsibleState: 'collapsed',
 		commands: [
 			{ command: '1c-platform-tools.cf.load', title: getLoadConfigurationFromSrcCommandName().title, treeLabel: '📥 Загрузить из исходного кода'},
 			{ command: '1c-platform-tools.cf.loadIncrement', title: getLoadConfigurationIncrementFromSrcCommandName().title, treeLabel: '📥 Загрузить изменения (git diff)' , formats: ['designer']},
@@ -155,7 +155,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 	{
 		groupLabel: 'Расширения',
 		sectionType: 'extension',
-		defaultCollapsibleState: 'expanded',
+		defaultCollapsibleState: 'collapsed',
 		commands: [
 			{ command: '1c-platform-tools.cfe.load', title: getLoadExtensionFromSrcCommandName().title, treeLabel: '📥 Загрузить из исходного кода'},
 			{ command: '1c-platform-tools.cfe.loadByList', title: getLoadExtensionFromFilesByListCommandName().title, treeLabel: '📥 Загрузить из objlist.txt' , formats: ['designer']},
@@ -247,7 +247,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 	{
 		groupLabel: 'Запуск',
 		sectionType: 'run',
-		defaultCollapsibleState: 'expanded',
+		defaultCollapsibleState: 'collapsed',
 		commands: [
 			{ command: '1c-platform-tools.run.enterprise', title: getRunEnterpriseCommandName().title, treeLabel: '▶️ Запустить Предприятие' },
 			{ command: '1c-platform-tools.run.designer', title: getRunDesignerCommandName().title, treeLabel: '▶️ Запустить Конфигуратор' },

@@ -238,7 +238,8 @@
           "id": "1c-platform-tools-tools-profile",
           "name": "Профиль запуска",
           "contextualTitle": "Профиль запуска",
-          "when": "1c-platform-tools.is1CProject == true"
+          "when": "1c-platform-tools.is1CProject == true",
+          "visibility": "collapsed"
         },
         {
           "id": "1c-platform-tools-tools-help",

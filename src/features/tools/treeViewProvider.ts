@@ -24,7 +24,7 @@ import { configurationScope } from '../../shared/activeConfiguration';
 import { onDidChangeProjectLayout } from '../../shared/projectLayoutWatch';
 import { currentRoot, onDidChangeCurrentProject } from '../../shared/workspaceProjects';
 
-/** Ключ в globalState для сохранения состояния раскрытия групп дерева (кроме «Избранное») */
+/** Ключ в globalState для сохранения состояния раскрытия групп дерева */
 export const TREE_GROUP_EXPANDED_STATE_KEY = '1c-platform-tools.treeGroupExpanded';
 
 /** Типы элементов дерева команд */
@@ -69,7 +69,7 @@ export class PlatformTreeItem extends vscode.TreeItem {
 
 	/**
 	 * Стабильный идентификатор группы (sectionType) для сохранения состояния раскрытия.
-	 * Заполняется только у корневых групп, у «Избранное» не задаётся.
+	 * Заполняется у корневых групп, включая «Избранное».
 	 */
 	public readonly groupId?: string;
 
@@ -385,9 +385,11 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 		return this.createTreeItem(
 			'Избранное',
 			TreeItemType.Favorites,
-			vscode.TreeItemCollapsibleState.Expanded,
+			this.resolveGroupCollapsibleState('favorites', false),
 			undefined,
-			favoriteItems
+			favoriteItems,
+			undefined,
+			'favorites'
 		);
 	}
 
@@ -402,7 +404,7 @@ export class PlatformTreeDataProvider implements vscode.TreeDataProvider<Platfor
 	}
 
 	/**
-	 * Возвращает сохранённое состояние раскрытия групп из globalState (кроме «Избранное»).
+	 * Возвращает сохранённое состояние раскрытия групп из globalState.
 	 * @returns Объект sectionType -> true (раскрыта) / false (свёрнута)
 	 */
 	private getGroupExpandedState(): Record<string, boolean> {
