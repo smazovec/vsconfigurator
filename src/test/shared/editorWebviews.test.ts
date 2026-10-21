@@ -3,11 +3,20 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 
 const EXTENSION_ROOT = path.resolve(__dirname, '../../..');
+const WEBVIEW = path.join('resources', 'webview');
 
 /** Редакторы служебных файлов: правят файл, поэтому у них есть кнопка JSON. */
 const FILE_EDITORS = [
-	{ name: 'пайплайны', file: path.join('src', 'features', 'pipelines', 'pipelineEditorProvider.ts') },
-	{ name: 'хуки', file: path.join('src', 'features', 'hooks', 'hooksEditorProvider.ts') },
+	{
+		name: 'пайплайны',
+		file: path.join('src', 'features', 'pipelines', 'pipelineEditorProvider.ts'),
+		page: path.join(WEBVIEW, 'pipeline-editor.html'),
+	},
+	{
+		name: 'хуки',
+		file: path.join('src', 'features', 'hooks', 'hooksEditorProvider.ts'),
+		page: path.join(WEBVIEW, 'hooks-editor.html'),
+	},
 ];
 
 /**
@@ -19,7 +28,11 @@ const FILE_EDITORS = [
  */
 const EDITORS = [
 	...FILE_EDITORS,
-	{ name: 'подключения к кластерам', file: path.join('src', 'features', 'clusters', 'connectionsEditor.ts') },
+	{
+		name: 'подключения к кластерам',
+		file: path.join('src', 'features', 'clusters', 'connectionsEditor.ts'),
+		page: path.join(WEBVIEW, 'cluster-connections.html'),
+	},
 ];
 
 /**
@@ -28,6 +41,7 @@ const EDITORS = [
  * поэтому общими с остальными редакторами проверяются оформление и подписи.
  */
 const PROFILE_EDITOR = path.join('src', 'features', 'profileEditor', 'profileEditorProvider.ts');
+const PROFILE_PAGE = path.join(WEBVIEW, 'profile-editor.html');
 
 const CHROME = path.join('src', 'features', 'editors', 'webviewChrome.ts');
 
@@ -36,7 +50,7 @@ function source(relPath: string): string {
 	return fs.readFileSync(path.join(EXTENSION_ROOT, relPath), 'utf8');
 }
 
-/** Разметка и скрипт формы из провайдера. */
+/** Разметка и скрипт формы из ресурса webview. */
 function parts(relPath: string): { html: string; script: string } {
 	const text = source(relPath);
 	const scriptStart = text.indexOf('<script nonce=');
@@ -68,7 +82,7 @@ suite('редакторы служебных файлов: общий карка
 	test('форма не обращается к элементам, которых нет в разметке', () => {
 		const ids = chromeIds();
 		for (const editor of EDITORS) {
-			const { html, script } = parts(editor.file);
+			const { html, script } = parts(editor.page);
 			const declared = new Set([...html.matchAll(/id="([\w-]+)"/g)].map((match) => match[1]));
 			const used = [...script.matchAll(/getElementById\('([\w-]+)'\)/g)].map((match) => match[1]);
 			const missing = used.filter((id) => !declared.has(id) && !ids.has(id));
@@ -79,7 +93,7 @@ suite('редакторы служебных файлов: общий карка
 	test('форма не вызывает функций, которых нет ни в ней, ни в каркасе', () => {
 		const shared = chromeFunctions();
 		for (const editor of EDITORS) {
-			const { script } = parts(editor.file);
+			const { script } = parts(editor.page);
 			const defined = new Set([...script.matchAll(/function (\w+)\(/g)].map((match) => match[1]));
 			const called = new Set([...script.matchAll(/(?<![\w.$])(\w+)\(/g)].map((match) => match[1]));
 			const missing = [...called].filter(
@@ -107,7 +121,7 @@ suite('редакторы служебных файлов: общий карка
 		const text = source(PROFILE_EDITOR);
 		assert.ok(text.includes('chromeStyles()'), 'редактор профиля не использует общий CSS');
 		assert.ok(text.includes('CHROME_LABELS.json'), 'подпись JSON задана мимо каркаса');
-		assert.ok(text.includes('class="toolbar"'), 'нет общей панели действий');
+		assert.ok(source(PROFILE_PAGE).includes('class="toolbar"'), 'нет общей панели действий');
 	});
 
 	test('панель сохранения одна на всех и подписи берутся из каркаса', () => {
@@ -115,23 +129,23 @@ suite('редакторы служебных файлов: общий карка
 		assert.ok(chrome.includes("id=\"saveButton\""), 'в каркасе нет кнопки сохранения');
 		assert.ok(chrome.includes("id=\"cancelButton\""), 'в каркасе нет кнопки отмены');
 		for (const editor of EDITORS) {
-			const { html } = parts(editor.file);
+			const { html } = parts(editor.page);
 			assert.ok(
 				!/>\s*(Сохранить|Отменить)\s*</.test(html),
 				`${editor.name}: подписи сохранения заданы мимо каркаса`
 			);
 		}
 		for (const editor of FILE_EDITORS) {
-			const { html } = parts(editor.file);
-			assert.ok(html.includes('${CHROME_LABELS.json}'), `${editor.name}: подпись JSON задана мимо каркаса`);
+			const { html } = parts(editor.page);
+			assert.ok(html.includes('{{JSON_LABEL}}'), `${editor.name}: подпись JSON задана мимо каркаса`);
 		}
 	});
 
 	test('удаление сущности живёт в списке, а не в панели действий', () => {
 		for (const editor of EDITORS) {
-			const { html } = parts(editor.file);
+			const { html } = parts(editor.page);
 			assert.ok(
-				!html.includes('${CHROME_LABELS.remove}'),
+				!html.includes('{{REMOVE_LABEL}}'),
 				`${editor.name}: кнопка удаления вернулась в панель действий`
 			);
 		}

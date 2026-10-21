@@ -14,6 +14,7 @@ import * as jsonc from 'jsonc-parser';
 import { SettingsSchema } from '../../shared/envProfiles';
 import { loadEditorSections, EditorSection, OptionGroup, CatalogOption } from './optionsCatalog';
 import { chromeStyles, CHROME_LABELS } from '../editors/webviewChrome';
+import { fillWebviewTemplate, loadWebviewTemplate } from '../../shared/webviewTemplate';
 
 import { pickerFor } from './valuePickers';
 
@@ -65,12 +66,15 @@ type WebviewMessage =
 	| { type: 'openJson' };
 
 export class ProfileEditorProvider implements vscode.CustomTextEditorProvider {
-	constructor(private readonly extensionPath: string) {}
+	constructor(
+		private readonly extensionPath: string,
+		private readonly extensionUri: vscode.Uri
+	) {}
 
 	public static register(context: vscode.ExtensionContext): vscode.Disposable {
 		return vscode.window.registerCustomEditorProvider(
 			PROFILE_EDITOR_VIEW_TYPE,
-			new ProfileEditorProvider(context.extensionPath),
+			new ProfileEditorProvider(context.extensionPath, context.extensionUri),
 			{ webviewOptions: { retainContextWhenHidden: true } }
 		);
 	}
@@ -80,7 +84,7 @@ export class ProfileEditorProvider implements vscode.CustomTextEditorProvider {
 		webviewPanel: vscode.WebviewPanel
 	): Promise<void> {
 		webviewPanel.webview.options = { enableScripts: true };
-		webviewPanel.webview.html = buildHtml();
+		webviewPanel.webview.html = await buildHtml(this.extensionUri);
 
 		const postModel = (): void => {
 			void webviewPanel.webview.postMessage({ type: 'model', model: this.buildModel(document) });
@@ -360,264 +364,13 @@ async function applyJsoncEdits(document: vscode.TextDocument, edits: jsonc.Edit[
 }
 
 /** HTML формы: рендер модели в инлайн-скрипте, правки уходят в extension. */
-function buildHtml(): string {
+async function buildHtml(extensionUri: vscode.Uri): Promise<string> {
 	const nonce = Math.random().toString(36).slice(2);
-	return /* html */ `<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
-<style>
-${chromeStyles()}
-	.page { flex: 1; min-height: 0; overflow: auto; }
-	.page-inner { max-width: 760px; margin: 0 auto; padding: 14px 20px 40px; }
-	.toolbar input { flex: 1; max-width: 320px; }
-	.subtitle { color: var(--vscode-descriptionForeground); font-size: 0.85em; }
-
-	h2 { font-size: 1em; font-weight: 600; margin: 26px 0 4px; text-transform: none; letter-spacing: 0; color: inherit; }
-	h2 .count { color: var(--vscode-descriptionForeground); font-weight: 400; }
-	.group-title { font-size: 0.8em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--vscode-descriptionForeground); margin: 18px 0 2px; }
-
-	.row { padding: 10px 0 8px; border-bottom: 1px solid var(--vscode-widget-border, var(--vscode-panel-border)); }
-	.row-top { display: flex; gap: 12px; align-items: center; }
-	.key { font-family: var(--vscode-editor-font-family); font-size: 0.95em; min-width: 200px; flex-shrink: 0; }
-	.key .badge { font-family: var(--vscode-font-family); font-size: 0.75em; color: var(--vscode-descriptionForeground); border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border)); border-radius: 8px; padding: 0 6px; margin-left: 6px; }
-	.control { flex: 1; min-width: 0; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
-	.control input[type=text], .control select, .control textarea { width: 100%; }
-	.control:has(> .pick) { display: flex; gap: 6px; align-items: center; }
-	.control > .pick { flex: none; }
-	.control label.radio { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; white-space: nowrap; }
-	.remove { background: none; color: var(--vscode-descriptionForeground); padding: 0 4px; font-size: 1.05em; flex-shrink: 0; }
-	.remove:hover { color: var(--vscode-errorForeground); background: none; }
-	.desc { color: var(--vscode-descriptionForeground); font-size: 0.85em; margin-top: 4px; line-height: 1.45; overflow-wrap: break-word; }
-
-	details.other, details.command { margin-top: 18px; }
-	details summary { cursor: pointer; font-weight: 600; padding: 6px 0; user-select: none; }
-	details summary .count { color: var(--vscode-descriptionForeground); font-weight: 400; }
-	.section-add { margin: 10px 0 0; }
-	.error { color: var(--vscode-errorForeground); padding: 24px 0; }
-	.empty { color: var(--vscode-descriptionForeground); padding: 18px 0; }
-</style>
-</head>
-<body>
-<div class="chrome">
-	<div class="toolbar">
-		<span class="title" id="title"></span>
-		<span class="subtitle" id="subtitle"></span>
-		<input type="text" id="filter" placeholder="Поиск параметра…">
-		<button class="primary" id="addMain">${CHROME_LABELS.add} Параметр</button>
-		<button id="addSection" title="Задать параметры для конкретной команды vanessa-runner">${CHROME_LABELS.add} Команда…</button>
-		<button id="openJson" title="Открыть файл как обычный JSON">${CHROME_LABELS.json}</button>
-	</div>
-	<div class="page">
-		<div class="page-inner" id="content"></div>
-	</div>
-	<div class="save-bar" id="saveBar">
-		<span class="status" id="saveStatus">Правки сохраняются сразу: файл меняется точечно, комментарии остаются на месте</span>
-	</div>
-</div>
-<script nonce="${nonce}">
-const vscodeApi = acquireVsCodeApi();
-let model;
-
-window.addEventListener('message', (event) => {
-	if (event.data.type === 'model') { model = event.data.model; render(); }
-});
-document.getElementById('openJson').addEventListener('click', () => post({ type: 'openJson' }));
-document.getElementById('addSection').addEventListener('click', () => post({ type: 'pickSection' }));
-document.getElementById('addMain').addEventListener('click', () => {
-	const main = model && model.sections.find((section) => section.isMain);
-	post({ type: 'pickAdd', sectionId: main ? main.id : 'default' });
-});
-document.getElementById('filter').addEventListener('input', render);
-
-function post(message) { vscodeApi.postMessage(message); }
-
-function matches(filter, entry) {
-	if (!filter) { return true; }
-	const haystack = (entry.key + ' ' + entry.description).toLowerCase();
-	return filter.toLowerCase().split(/\\s+/).every((part) => haystack.includes(part));
-}
-
-function control(sectionId, entry) {
-	const wrap = document.createElement('div');
-	wrap.className = 'control';
-	const send = (value) => post({ type: 'set', sectionId, key: entry.key, value });
-
-	if (entry.type === 'boolean') {
-		const box = document.createElement('input');
-		box.type = 'checkbox';
-		box.checked = entry.value === true;
-		box.addEventListener('change', () => send(box.checked));
-		wrap.appendChild(box);
-	} else if (entry.enum && entry.enum.length && entry.enum.length <= 4) {
-		for (const raw of entry.enum) {
-			const value = String(raw);
-			const label = document.createElement('label');
-			label.className = 'radio';
-			const radio = document.createElement('input');
-			radio.type = 'radio';
-			radio.name = sectionId + '/' + entry.key;
-			radio.checked = String(entry.value) === value;
-			radio.addEventListener('change', () => send(typeof raw === 'number' ? raw : value));
-			label.appendChild(radio);
-			label.append((entry.enumLabels && entry.enumLabels[value]) ? entry.enumLabels[value] + ' (' + value + ')' : value);
-			wrap.appendChild(label);
-		}
-	} else if (entry.enum && entry.enum.length) {
-		const select = document.createElement('select');
-		for (const raw of entry.enum) {
-			const value = String(raw);
-			const optionEl = document.createElement('option');
-			optionEl.value = value;
-			optionEl.textContent = (entry.enumLabels && entry.enumLabels[value]) ? entry.enumLabels[value] + ' (' + value + ')' : value;
-			optionEl.selected = String(entry.value) === value;
-			select.appendChild(optionEl);
-		}
-		select.addEventListener('change', () => send(select.value));
-		wrap.appendChild(select);
-	} else if (entry.type === 'array') {
-		const area = document.createElement('textarea');
-		area.rows = Math.min(6, Math.max(2, (Array.isArray(entry.value) ? entry.value.length : 1) + 1));
-		area.value = Array.isArray(entry.value) ? entry.value.join('\\n') : String(entry.value ?? '');
-		area.placeholder = 'по одному значению на строку' + (entry.itemsEnum ? ': ' + entry.itemsEnum.join(', ') : '');
-		area.addEventListener('change', () => send(area.value.split('\\n').map((line) => line.trim()).filter(Boolean)));
-		wrap.appendChild(area);
-	} else {
-		const input = document.createElement('input');
-		input.type = 'text';
-		input.value = entry.value === undefined || entry.value === null ? '' : String(entry.value);
-		if (entry.default !== undefined && entry.default !== '') {
-			input.placeholder = 'по умолчанию: ' + entry.default;
-		}
-		input.addEventListener('change', () => send(entry.type === 'number' || entry.type === 'integer' ? Number(input.value) : input.value));
-		wrap.appendChild(input);
-		// Подбор только подставляет значение: поле остаётся обычным, вписать своё можно всегда.
-		if (entry.picker) {
-			const pick = document.createElement('button');
-			pick.type = 'button';
-			pick.className = 'pick';
-			pick.textContent = entry.picker;
-			pick.addEventListener('click', () => post({ type: 'pick', sectionId, key: entry.key }));
-			wrap.appendChild(pick);
-		}
-	}
-	return wrap;
-}
-
-function renderRow(sectionId, entry) {
-	const row = document.createElement('div');
-	row.className = 'row';
-	const top = document.createElement('div');
-	top.className = 'row-top';
-	const key = document.createElement('div');
-	key.className = 'key';
-	key.textContent = entry.key;
-	if (!entry.known) {
-		const badge = document.createElement('span');
-		badge.className = 'badge';
-		badge.textContent = 'нестандартный';
-		key.appendChild(badge);
-	}
-	top.appendChild(key);
-	top.appendChild(control(sectionId, entry));
-	const remove = document.createElement('button');
-	remove.className = 'remove';
-	remove.textContent = '✕';
-	remove.title = 'Удалить параметр из файла';
-	remove.addEventListener('click', () => post({ type: 'remove', sectionId, key: entry.key }));
-	top.appendChild(remove);
-	row.appendChild(top);
-	const desc = document.createElement('div');
-	desc.className = 'desc';
-	desc.textContent = entry.description;
-	row.appendChild(desc);
-	return row;
-}
-
-function addButton(sectionId, label) {
-	const holder = document.createElement('div');
-	holder.className = 'section-add';
-	const button = document.createElement('button');
-	button.textContent = label;
-	button.addEventListener('click', () => post({ type: 'pickAdd', sectionId }));
-	holder.appendChild(button);
-	return holder;
-}
-
-function render() {
-	const content = document.getElementById('content');
-	content.textContent = '';
-	if (!model) { return; }
-	document.getElementById('title').textContent = model.fileName;
-	document.getElementById('subtitle').textContent = model.schemaLabel;
-	document.getElementById('addSection').style.display = model.canAddSection ? '' : 'none';
-	if (model.error) {
-		const error = document.createElement('div');
-		error.className = 'error';
-		error.textContent = model.error;
-		content.appendChild(error);
-		return;
-	}
-	const filter = document.getElementById('filter').value.trim();
-	const groupLabel = Object.fromEntries(model.groups.map((group) => [group.id, group.label]));
-
-	for (const section of model.sections) {
-		const visible = section.entries.filter((entry) => matches(filter, entry));
-		if (filter && visible.length === 0) { continue; }
-
-		if (section.isMain) {
-			// главная секция: параметры по смысловым группам, «Прочее» — свёрнуто
-			const order = model.groups.map((group) => group.id);
-			const byGroup = new Map();
-			for (const entry of visible) {
-				const id = order.includes(entry.group) ? entry.group : 'other';
-				if (!byGroup.has(id)) { byGroup.set(id, []); }
-				byGroup.get(id).push(entry);
-			}
-			if (visible.length === 0 && !filter) {
-				const empty = document.createElement('div');
-				empty.className = 'empty';
-				empty.textContent = 'Параметры ещё не заданы — нажмите «＋ Параметр».';
-				content.appendChild(empty);
-			}
-			for (const groupId of order) {
-				const entries = byGroup.get(groupId);
-				if (!entries || entries.length === 0) { continue; }
-				if (groupId === 'other' && !filter) {
-					const details = document.createElement('details');
-					details.className = 'other';
-					details.open = false;
-					const summary = document.createElement('summary');
-					summary.innerHTML = 'Прочее <span class="count">· ' + entries.length + '</span>';
-					details.appendChild(summary);
-					for (const entry of entries) { details.appendChild(renderRow(section.id, entry)); }
-					content.appendChild(details);
-				} else {
-					const title = document.createElement('div');
-					title.className = 'group-title';
-					title.textContent = groupLabel[groupId] || groupId;
-					content.appendChild(title);
-					for (const entry of entries) { content.appendChild(renderRow(section.id, entry)); }
-				}
-			}
-		} else {
-			const details = document.createElement('details');
-			details.className = 'command';
-			details.open = Boolean(filter) || true;
-			const summary = document.createElement('summary');
-			summary.innerHTML = section.label + ' <span class="count">· ' + section.entries.length + '</span>';
-			details.appendChild(summary);
-			for (const entry of visible) { details.appendChild(renderRow(section.id, entry)); }
-			if (section.canAdd && !filter) {
-				details.appendChild(addButton(section.id, '＋ Параметр команды'));
-			}
-			details.appendChild(document.createElement('div'));
-			content.appendChild(details);
-		}
-	}
-}
-</script>
-</body>
-</html>`;
+	const template = await loadWebviewTemplate(extensionUri, 'profile-editor.html');
+	return fillWebviewTemplate(template, {
+		NONCE: nonce,
+		CHROME_STYLES: chromeStyles(),
+		ADD_LABEL: CHROME_LABELS.add,
+		JSON_LABEL: CHROME_LABELS.json,
+	});
 }

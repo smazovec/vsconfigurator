@@ -12,6 +12,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { logger } from '../../shared/logger';
+import { fillWebviewTemplate, loadWebviewTemplate } from '../../shared/webviewTemplate';
 import { invalidateHooksCache, runHookPhaseDry } from '../../shared/commandHooks';
 import { readCommandCatalog, CommandCatalogEntry } from '../../shared/commandCatalog';
 import {
@@ -72,15 +73,18 @@ export class HooksEditorProvider implements vscode.CustomTextEditorProvider {
 	/**
 	 * Регистрирует редактор хуков.
 	 *
+	 * @param extensionUri - Корень расширения с ресурсами webview
 	 * @returns Disposable регистрации
 	 */
-	static register(): vscode.Disposable {
+	static register(extensionUri: vscode.Uri): vscode.Disposable {
 		return vscode.window.registerCustomEditorProvider(
 			HOOKS_EDITOR_VIEW_TYPE,
-			new HooksEditorProvider(),
+			new HooksEditorProvider(extensionUri),
 			{ webviewOptions: { retainContextWhenHidden: true }, supportsMultipleEditorsPerDocument: false }
 		);
 	}
+
+	constructor(private readonly extensionUri: vscode.Uri) {}
 
 	/**
 	 * Открывает документ формой.
@@ -93,7 +97,7 @@ export class HooksEditorProvider implements vscode.CustomTextEditorProvider {
 		webviewPanel: vscode.WebviewPanel
 	): Promise<void> {
 		webviewPanel.webview.options = { enableScripts: true };
-		webviewPanel.webview.html = buildHtml();
+		webviewPanel.webview.html = await buildHtml(this.extensionUri);
 
 		const post = (): void => {
 			void webviewPanel.webview.postMessage({ type: 'model', model: this.buildModel(document) });
@@ -227,329 +231,16 @@ async function pickCommand(model: EditorModel): Promise<string | undefined> {
 }
 
 /** HTML формы: рендер модели в инлайн-скрипте, правки уходят в extension. */
-function buildHtml(): string {
+async function buildHtml(extensionUri: vscode.Uri): Promise<string> {
 	const nonce = Math.random().toString(36).slice(2);
-	return /* html */ `<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
-<style>
-${chromeStyles()}
-	.chrome-body { grid-template-columns: 280px minmax(0, 1fr); }
-	.main { overflow: auto; padding: 14px 18px 30px; }
-	.command-id { font-family: var(--vscode-editor-font-family); font-size: 0.8em;
-		color: var(--vscode-descriptionForeground); margin-bottom: 16px; }
-	.phase { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 12px; margin-bottom: 14px;
-		border-left: 4px solid var(--phase); }
-	.phase h3 { font-size: 0.95em; margin: 0 0 3px; display: flex; align-items: center; gap: 8px; }
-	.phase h3 button { margin-left: auto; }
-	.phase .note { font-size: 0.8em; color: var(--vscode-descriptionForeground); margin-bottom: 10px; }
-	.step { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
-	.step .order { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; margin-top: 5px;
-		background: var(--vscode-badge-background); color: var(--vscode-badge-foreground);
-		display: flex; align-items: center; justify-content: center; font-size: 0.72em; }
-	.step .grow { flex: 1; min-width: 0; }
-	.step .options { display: flex; gap: 14px; align-items: center; margin-top: 5px; font-size: 0.82em;
-		color: var(--vscode-descriptionForeground); }
-	.step .options label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
-	.step .options input[type=number] { width: 74px; }
-	.step .options input[type=checkbox] { width: auto; }
-	.dry-run { margin: 8px 0 0; padding: 8px 10px; border-radius: 6px; white-space: pre-wrap; font-size: 0.82em;
-		font-family: var(--vscode-editor-font-family); background: var(--vscode-textCodeBlock-background, #00000030);
-		border-left: 3px solid var(--ok); }
-	.dry-run.failed { border-left-color: var(--fail); }
-</style>
-</head>
-<body>
-<div class="chrome">
-	<div class="toolbar">
-		<span class="title" id="title"></span>
-		<button id="jsonButton" title="Открыть файл как обычный JSON">${CHROME_LABELS.json}</button>
-	</div>
-	<div class="chrome-body">
-		<div class="side left">
-			<h2>Команды с хуками <button class="round" id="addButton" title="Добавить команду">${CHROME_LABELS.add}</button></h2>
-			<div id="list"></div>
-		</div>
-		<div class="main" id="details"></div>
-	</div>
-	${saveBarHtml()}
-</div>
-<script nonce="${nonce}">
-const PHASES = [
-	{ id: 'pre', title: 'До команды', note: 'Выполняется перед запуском команды. Ошибка шага отменяет команду.', color: '#4EC9B0' },
-	{ id: 'post', title: 'После команды', note: 'Выполняется после успешного завершения команды.', color: '#569CD6' },
-	{ id: 'onError', title: 'При ошибке', note: 'Выполняется, если команда завершилась с ошибкой.', color: 'var(--fail)' },
-];
-
-let catalog = [];
-let modelError;
-let baseline = {};
-let draft = {};
-let selectedCommand;
-/** Итог проверки фазы: показывается под её шагами */
-let dryRunPhase;
-let dryRunOutput;
-
-${chromeScript()}
-
-window.addEventListener('message', (event) => {
-	const data = event.data;
-	if (data.type === 'model') {
-		catalog = data.model.catalog;
-		modelError = data.model.error;
-		const dirty = isDirty();
-		baseline = data.model.hooks;
-		if (!dirty) { draft = JSON.parse(JSON.stringify(baseline)); }
-		renderAll();
-		return;
-	}
-	if (data.type === 'dryRunResult') {
-		dryRunOutput = { phase: dryRunPhase, success: data.success, output: data.output };
-		renderAll();
-		return;
-	}
-	if (data.type === 'saved') {
-		saveStatus = ${JSON.stringify(CHROME_LABELS.saved)};
-		saveStatusKind = 'ok';
-		renderAll();
-		return;
-	}
-	if (data.type === 'select') {
-		if (draft[data.commandId]) {
-			selectedCommand = data.commandId;
-			renderAll();
-		}
-		return;
-	}
-	if (data.type === 'addCommand') {
-		if (!draft[data.commandId]) { draft[data.commandId] = { pre: [{ command: '' }] }; }
-		selectedCommand = data.commandId;
-		commit();
-	}
-});
-
-document.getElementById('addButton').addEventListener('click', () => post({ type: 'pickCommand' }));
-
-function entry() { return selectedCommand ? draft[selectedCommand] : undefined; }
-
-function commandTitle(commandId) {
-	if (commandId === '*') { return 'Все команды'; }
-	const found = catalog.find((item) => item.id === commandId);
-	return (found && found.title) || commandId;
-}
-
-function removeCommand(commandId) {
-	delete draft[commandId];
-	if (selectedCommand === commandId) {
-		const ids = Object.keys(draft);
-		selectedCommand = ids.length ? ids[0] : undefined;
-	}
-	commit();
-}
-
-/**
- * Правка значения шага: панель не пересобирается, чтобы не красть фокус.
- * Список и структура от значений не зависят — обновляется только панель
- * сохранения, а значения приходят по вводу, без blur.
- */
-function fieldEdited() {
-	saveStatus = '';
-	saveStatusKind = '';
-	renderSaveBar();
-}
-
-function renderAll() {
-	const ids = Object.keys(draft);
-	if (selectedCommand && !draft[selectedCommand]) { selectedCommand = undefined; }
-	if (!selectedCommand && ids.length > 0) { selectedCommand = ids[0]; }
-	document.getElementById('title').textContent = selectedCommand ? commandTitle(selectedCommand) : 'Хуки команд';
-	renderList(ids);
-	renderDetails();
-	renderSaveBar();
-}
-
-function renderList(ids) {
-	const host = document.getElementById('list');
-	host.textContent = '';
-	if (ids.length === 0) {
-		host.appendChild(hint('Хуков нет. Добавьте команду кнопкой ＋: к ней можно прицепить шаги до, после и при ошибке.'));
-		return;
-	}
-	for (const commandId of ids) {
-		host.appendChild(listItem({
-			title: commandTitle(commandId),
-			subtitle: describe(draft[commandId]) || commandId,
-			active: commandId === selectedCommand,
-			onSelect: () => { selectedCommand = commandId; renderAll(); },
-			onRemove: () => removeCommand(commandId),
-		}));
-	}
-}
-
-function describe(hookEntry) {
-	const labels = { pre: 'до', post: 'после', onError: 'при ошибке' };
-	return PHASES
-		.filter((phase) => (hookEntry[phase.id] || []).length > 0)
-		.map((phase) => labels[phase.id] + ' ' + hookEntry[phase.id].length)
-		.join(', ');
-}
-
-function renderDetails() {
-	const host = document.getElementById('details');
-	host.textContent = '';
-
-	if (modelError) {
-		const error = document.createElement('div');
-		error.className = 'error';
-		error.textContent = modelError;
-		host.appendChild(error);
-		return;
-	}
-
-	const hookEntry = entry();
-	if (!hookEntry) {
-		host.appendChild(hint('Хуки выполняются вокруг команд расширения: подготовить каталог перед сборкой, отправить уведомление после прогона тестов, собрать артефакты при ошибке. Шаг - командная строка, выполняется в корне проекта.'));
-		return;
-	}
-
-	const id = document.createElement('div');
-	id.className = 'command-id';
-	id.textContent = selectedCommand;
-	host.appendChild(id);
-
-	for (const phase of PHASES) { host.appendChild(renderPhase(phase, hookEntry)); }
-	host.appendChild(hint('Шаг выполняется в оболочке из корня проекта. Переменные окружения команды доступны шагу: путь проекта, идентификатор команды и её аргументы.'));
-}
-
-function renderPhase(phase, hookEntry) {
-	const block = document.createElement('div');
-	block.className = 'phase';
-	block.style.setProperty('--phase', phase.color);
-
-	const caption = document.createElement('h3');
-	caption.textContent = phase.title;
-	const check = document.createElement('button');
-	check.textContent = 'Проверить';
-	check.title = 'Выполнить шаги этой фазы, не запуская саму команду';
-	check.addEventListener('click', () => {
-		if (isDirty() || pendingEdit) { save(); }
-		dryRunPhase = phase.id;
-		post({ type: 'dryRun', commandId: selectedCommand, phase: phase.id });
+	const template = await loadWebviewTemplate(extensionUri, 'hooks-editor.html');
+	return fillWebviewTemplate(template, {
+		NONCE: nonce,
+		CHROME_STYLES: chromeStyles(),
+		JSON_LABEL: CHROME_LABELS.json,
+		ADD_LABEL: CHROME_LABELS.add,
+		SAVE_BAR: saveBarHtml(),
+		CHROME_SCRIPT: chromeScript(),
+		SAVED_LABEL: JSON.stringify(CHROME_LABELS.saved),
 	});
-	caption.appendChild(check);
-
-	const add = document.createElement('button');
-	add.textContent = '＋ Шаг';
-	add.addEventListener('click', () => {
-		hookEntry[phase.id] = [...(hookEntry[phase.id] || []), { command: '' }];
-		commit();
-	});
-	caption.appendChild(add);
-	block.appendChild(caption);
-
-	const note = document.createElement('div');
-	note.className = 'note';
-	note.textContent = phase.note;
-	block.appendChild(note);
-
-	const steps = hookEntry[phase.id] || [];
-	if (steps.length === 0) {
-		block.appendChild(empty('Шагов нет'));
-		return block;
-	}
-
-	steps.forEach((step, index) => block.appendChild(renderStep(phase, hookEntry, step, index)));
-	if (dryRunOutput && dryRunOutput.phase === phase.id) {
-		const result = document.createElement('pre');
-		result.className = 'dry-run' + (dryRunOutput.success ? '' : ' failed');
-		result.textContent = dryRunOutput.output;
-		block.appendChild(result);
-	}
-	return block;
-}
-
-function renderStep(phase, hookEntry, step, index) {
-	const row = document.createElement('div');
-	row.className = 'step';
-
-	const order = document.createElement('span');
-	order.className = 'order';
-	order.textContent = index + 1;
-	row.appendChild(order);
-
-	const grow = document.createElement('div');
-	grow.className = 'grow';
-	const input = document.createElement('input');
-	input.type = 'text';
-	input.value = step.command || '';
-	input.placeholder = 'Командная строка, например npm run build';
-	input.addEventListener('input', () => { step.command = input.value; fieldEdited(); });
-	grow.appendChild(input);
-
-	const options = document.createElement('div');
-	options.className = 'options';
-
-	const continueLabel = document.createElement('label');
-	const continueBox = document.createElement('input');
-	continueBox.type = 'checkbox';
-	continueBox.checked = step.continueOnError === true;
-	continueBox.addEventListener('change', () => {
-		if (continueBox.checked) { step.continueOnError = true; } else { delete step.continueOnError; }
-		fieldEdited();
-	});
-	continueLabel.appendChild(continueBox);
-	continueLabel.append('продолжать после ошибки');
-	options.appendChild(continueLabel);
-
-	const timeoutLabel = document.createElement('label');
-	const timeoutInput = document.createElement('input');
-	timeoutInput.type = 'number';
-	timeoutInput.value = step.timeout === undefined ? '' : step.timeout;
-	timeoutInput.placeholder = '30';
-	timeoutInput.addEventListener('input', () => {
-		const parsed = Number(timeoutInput.value);
-		if (Number.isFinite(parsed) && parsed > 0) { step.timeout = parsed; } else { delete step.timeout; }
-		fieldEdited();
-	});
-	timeoutLabel.append('таймаут, с');
-	timeoutLabel.appendChild(timeoutInput);
-	options.appendChild(timeoutLabel);
-
-	grow.appendChild(options);
-	row.appendChild(grow);
-
-	row.appendChild(iconButton('↑', 'Выше', () => move(phase, hookEntry, index, -1)));
-	row.appendChild(iconButton('↓', 'Ниже', () => move(phase, hookEntry, index, 1)));
-	const remove = iconButton('✕', 'Удалить шаг', () => {
-		hookEntry[phase.id].splice(index, 1);
-		if (hookEntry[phase.id].length === 0) { delete hookEntry[phase.id]; }
-		commit();
-	});
-	remove.classList.add('danger');
-	row.appendChild(remove);
-	return row;
-}
-
-function move(phase, hookEntry, index, delta) {
-	const steps = hookEntry[phase.id];
-	const target = index + delta;
-	if (!steps || target < 0 || target >= steps.length) { return; }
-	const [step] = steps.splice(index, 1);
-	steps.splice(target, 0, step);
-	commit();
-}
-
-function iconButton(text, title, onClick) {
-	const button = document.createElement('button');
-	button.className = 'icon';
-	button.textContent = text;
-	button.title = title;
-	button.addEventListener('click', onClick);
-	return button;
-}
-</script>
-</body>
-</html>`;
 }

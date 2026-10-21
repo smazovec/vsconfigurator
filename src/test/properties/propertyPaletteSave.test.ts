@@ -9,6 +9,8 @@ import {
 	PropertyPaletteViewProvider,
 } from '../../features/properties/propertyPaletteView';
 
+const EXTENSION_ROOT = vscode.Uri.file(path.resolve(__dirname, '../../..'));
+
 /** Панель-заглушка: запоминает сообщения странице и даёт закрыть её. */
 function fakeView(): {
 	view: vscode.WebviewView;
@@ -48,10 +50,10 @@ function fakeView(): {
 }
 
 suite('панель свойств: запись по Ctrl+S', () => {
-	test('пока панель в фокусе, общее сохранение пишет в неё', () => {
-		const provider = new PropertyPaletteViewProvider(vscode.Uri.file('/ext'));
+	test('пока панель в фокусе, общее сохранение пишет в неё', async () => {
+		const provider = new PropertyPaletteViewProvider(EXTENSION_ROOT);
 		const { view, posted, receive, dispose } = fakeView();
-		provider.resolveWebviewView(view);
+		await provider.resolveWebviewView(view);
 		try {
 			receive({ type: 'focus' });
 			posted.length = 0;
@@ -64,10 +66,10 @@ suite('панель свойств: запись по Ctrl+S', () => {
 		}
 	});
 
-	test('без фокуса панели общее сохранение её не трогает', () => {
-		const provider = new PropertyPaletteViewProvider(vscode.Uri.file('/ext'));
+	test('без фокуса панели общее сохранение её не трогает', async () => {
+		const provider = new PropertyPaletteViewProvider(EXTENSION_ROOT);
 		const { view, posted, dispose } = fakeView();
-		provider.resolveWebviewView(view);
+		await provider.resolveWebviewView(view);
 		try {
 			posted.length = 0;
 
@@ -79,10 +81,10 @@ suite('панель свойств: запись по Ctrl+S', () => {
 		}
 	});
 
-	test('страница пишет так же, как редактор свойств во вкладке', () => {
-		const provider = new PropertyPaletteViewProvider(vscode.Uri.file('/ext'));
+	test('страница пишет так же, как редактор свойств во вкладке', async () => {
+		const provider = new PropertyPaletteViewProvider(EXTENSION_ROOT);
 		const { view, dispose } = fakeView();
-		provider.resolveWebviewView(view);
+		await provider.resolveWebviewView(view);
 		try {
 			assert.ok(view.webview.html.includes("message.type === 'saveRequested'"));
 			assert.ok(view.webview.html.includes('active.blur()'));
