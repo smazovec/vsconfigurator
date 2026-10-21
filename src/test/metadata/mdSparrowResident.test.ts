@@ -48,6 +48,7 @@ function harness(
 		java: 'java',
 		jarPath,
 		releaseTag: options.releaseTag === null ? undefined : (options.releaseTag ?? 'v0.0.0'),
+		javaVersion: 25,
 	};
 	const onceCalls: ResidentRequest[] = [];
 	const launches: string[] = [];

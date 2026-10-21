@@ -27,9 +27,9 @@ import {
 import {
 	MD_SPARROW_DEFAULT_REPO,
 	MD_SPARROW_JAR_REGEX,
-	MD_SPARROW_JAVA,
 	adoptiumBinaryUrl,
 } from './mdSparrowConstants';
+import { readJarJavaVersion } from './jarJavaVersion';
 import { stopMdSparrowResidents } from './mdSparrowRunner';
 import { cachedJava, cachedJreVersion, clearJre, installJre, tidyJreCache } from './portableJre';
 
@@ -44,6 +44,8 @@ export interface MdSparrowRuntime {
 	releaseTag?: string;
 	/** Java не указана в настройках: её путь меняется вместе с portable JRE. */
 	autoJava?: boolean;
+	/** Версия Java, под которую собран JAR. */
+	javaVersion: number;
 }
 
 const MD_SPARROW_SPEC: ReleaseComponentSpec = {
@@ -57,26 +59,31 @@ const MD_SPARROW_SPEC: ReleaseComponentSpec = {
 };
 
 /** Каталог кэша portable JRE. */
-function jreRootOf(baseDir: string): string {
-	return path.join(baseDir, `jre-temurin-${MD_SPARROW_JAVA}`);
+function jreRootOf(baseDir: string, javaVersion: number): string {
+	return path.join(baseDir, `jre-temurin-${javaVersion}`);
 }
 
 /** Качает архив Temurin в каталог установки и распаковывает его там же. */
-async function downloadJreInto(dir: string): Promise<void> {
-	const archiveName = process.platform === 'win32' ? `temurin-jre-${MD_SPARROW_JAVA}.zip` : `temurin-jre-${MD_SPARROW_JAVA}.tar.gz`;
+async function downloadJreInto(dir: string, javaVersion: number): Promise<void> {
+	const archiveName = process.platform === 'win32' ? `temurin-jre-${javaVersion}.zip` : `temurin-jre-${javaVersion}.tar.gz`;
 	const archivePath = path.join(dir, archiveName);
-	await streamDownload(adoptiumBinaryUrl(), archivePath, { 'User-Agent': 'vscode-1c-platform-tools' });
+	await streamDownload(adoptiumBinaryUrl(javaVersion), archivePath, { 'User-Agent': 'vscode-1c-platform-tools' });
 	await extractArchive(archivePath, dir);
 	await fs.rm(archivePath, { force: true });
 }
 
-async function ensurePortableJre(baseDir: string, download: boolean, javaOverride: string): Promise<string> {
+async function ensurePortableJre(
+	baseDir: string,
+	download: boolean,
+	javaOverride: string,
+	javaVersion: number
+): Promise<string> {
 	const trimmed = javaOverride.trim();
 	if (trimmed) {
 		return trimmed;
 	}
 
-	const jreRoot = jreRootOf(baseDir);
+	const jreRoot = jreRootOf(baseDir, javaVersion);
 	const cached = cachedJava(jreRoot);
 	if (cached !== undefined) {
 		log.debug(`JRE из кэша: ${cached}`);
@@ -89,10 +96,10 @@ async function ensurePortableJre(baseDir: string, download: boolean, javaOverrid
 	}
 
 	return preparedOnce(`jre-install|${jreRoot}`, async () => {
-		log.info(`загрузка portable JRE ${MD_SPARROW_JAVA} (Eclipse Temurin)…`);
-		const status = showStatus(`md-sparrow: загружаем JRE ${MD_SPARROW_JAVA}...`);
+		log.info(`загрузка portable JRE ${javaVersion} (Eclipse Temurin)…`);
+		const status = showStatus(`md-sparrow: загружаем JRE ${javaVersion}...`);
 		try {
-			const java = await installJre(jreRoot, downloadJreInto);
+			const java = await installJre(jreRoot, (dir) => downloadJreInto(dir, javaVersion));
 			log.info(`JRE готова: ${java}`);
 			return java;
 		} finally {
@@ -152,16 +159,19 @@ export async function ensureMdSparrowRuntime(
 	}
 
 	const base = installBaseDir(context);
+	await fs.mkdir(base, { recursive: true });
 	// Параллельные обращения с одинаковыми настройками ждут одну подготовку
-	const java = await preparedOnce(`jre|${base}|${downloadJre}|${javaPathSetting}`, async () => {
-		await fs.mkdir(base, { recursive: true });
-		return ensurePortableJre(base, downloadJre, javaPathSetting);
-	});
 	const { jarPath, tag } = await preparedOnce(`jar|${base}|${download}|${jarPathSetting}`, () =>
 		ensureJar(base, download, jarPathSetting, resolveGithubToken())
 	);
+	// Версию Java задаёт сборка md-sparrow
+	const javaVersion = await readJarJavaVersion(jarPath);
+	const java = await preparedOnce(
+		`jre|${base}|${downloadJre}|${javaPathSetting}|${javaVersion}`,
+		() => ensurePortableJre(base, downloadJre, javaPathSetting, javaVersion)
+	);
 
-	return { java, jarPath, releaseTag: tag, autoJava: javaPathSetting === '' };
+	return { java, jarPath, releaseTag: tag, autoJava: javaPathSetting === '', javaVersion };
 }
 
 /** Идущие сейчас подготовки по ключу настроек. */
@@ -219,7 +229,7 @@ export async function downloadMdSparrowJar(context: vscode.ExtensionContext): Pr
 }
 
 /**
- * Загружает portable JRE, не глядя на `components.path.java` и автозагрузку.
+ * Загружает portable JRE для JAR md-sparrow, не глядя на `components.path.java` и автозагрузку.
  *
  * @param context - Контекст расширения
  * @returns Путь к java
@@ -227,7 +237,15 @@ export async function downloadMdSparrowJar(context: vscode.ExtensionContext): Pr
 export async function downloadPortableJre(context: vscode.ExtensionContext): Promise<string> {
 	const base = installBaseDir(context);
 	await fs.mkdir(base, { recursive: true });
-	return ensurePortableJre(base, true, '');
+	const jarPathSetting = projectConfiguration(currentRoot())
+		.get<string>('components.path.metadataJar', '')
+		.trim();
+	const jarPath =
+		jarPathSetting !== '' && fssync.existsSync(jarPathSetting)
+			? jarPathSetting
+			: ((await cachedMdSparrowPath(context)) ?? (await downloadMdSparrowJar(context)));
+	const javaVersion = await readJarJavaVersion(jarPath);
+	return ensurePortableJre(base, true, '', javaVersion);
 }
 
 /** Тег релиза md-sparrow в кэше; undefined — не загружен. */
@@ -245,9 +263,26 @@ export async function clearMdSparrowJarCache(context: vscode.ExtensionContext): 
 	await clearReleaseCache(installBaseDir(context), MD_SPARROW_SPEC);
 }
 
-/** Есть ли в кэше portable JRE. */
-export function portableJreCached(context: vscode.ExtensionContext): boolean {
-	return cachedJava(jreRootOf(installBaseDir(context))) !== undefined;
+/** Каталоги кэша JRE: по одному на версию Java. */
+function jreRoots(baseDir: string): string[] {
+	try {
+		return fssync
+			.readdirSync(baseDir, { withFileTypes: true })
+			.filter((entry) => entry.isDirectory() && /^jre-temurin-\d+$/.test(entry.name))
+			.map((entry) => path.join(baseDir, entry.name));
+	} catch {
+		return [];
+	}
+}
+
+/** Каталог JRE для версии из JAR; undefined — JAR или JRE ещё не загружены. */
+async function cachedJreRoot(context: vscode.ExtensionContext): Promise<string | undefined> {
+	const jarPath = await cachedMdSparrowPath(context);
+	if (jarPath === undefined) {
+		return undefined;
+	}
+	const root = jreRootOf(installBaseDir(context), await readJarJavaVersion(jarPath));
+	return cachedJava(root) === undefined ? undefined : root;
 }
 
 /**
@@ -256,8 +291,9 @@ export function portableJreCached(context: vscode.ExtensionContext): boolean {
  * @param context - Контекст расширения
  * @returns Версия JRE или undefined, если она не загружена
  */
-export function portableJreVersion(context: vscode.ExtensionContext): string | undefined {
-	return cachedJreVersion(jreRootOf(installBaseDir(context)));
+export async function portableJreVersion(context: vscode.ExtensionContext): Promise<string | undefined> {
+	const root = await cachedJreRoot(context);
+	return root === undefined ? undefined : cachedJreVersion(root);
 }
 
 /**
@@ -266,8 +302,9 @@ export function portableJreVersion(context: vscode.ExtensionContext): string | u
  * @param context - Контекст расширения
  * @returns Путь или undefined, если JRE не загружена
  */
-export function portableJreJavaPath(context: vscode.ExtensionContext): string | undefined {
-	return cachedJava(jreRootOf(installBaseDir(context)));
+export async function portableJreJavaPath(context: vscode.ExtensionContext): Promise<string | undefined> {
+	const root = await cachedJreRoot(context);
+	return root === undefined ? undefined : cachedJava(root);
 }
 
 /**
@@ -277,5 +314,5 @@ export function portableJreJavaPath(context: vscode.ExtensionContext): string | 
  */
 export async function clearPortableJreCache(context: vscode.ExtensionContext): Promise<void> {
 	await stopMdSparrowResidents();
-	await clearJre(jreRootOf(installBaseDir(context)));
+	await Promise.all(jreRoots(installBaseDir(context)).map((root) => clearJre(root)));
 }

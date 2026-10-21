@@ -1,5 +1,4 @@
 import * as assert from 'node:assert';
-import { MD_SPARROW_JAVA } from '../../features/metadata/mdSparrowConstants';
 import { javaTooOldMessage } from '../../features/metadata/mdSparrowRunner';
 
 suite('запуск md-sparrow на старой java', () => {
@@ -11,15 +10,18 @@ suite('запуск md-sparrow на старой java', () => {
 	].join('\r\n');
 
 	test('отказ старой java объясняется версией и настройками', () => {
-		const message = javaTooOldMessage(JAVA_21) ?? '';
+		const message = javaTooOldMessage(JAVA_21, 25) ?? '';
 
-		assert.ok(message.includes(`Java ${MD_SPARROW_JAVA} или новее`), message);
+		assert.ok(message.includes('Java 25 или новее'), message);
 		assert.ok(message.includes('components.path.java'), message);
 		assert.ok(message.includes('components.autoload.java'), message);
 	});
 
 	test('другие отказы остаются как есть', () => {
-		assert.strictEqual(javaTooOldMessage('Каталог cwd должен быть абсолютным путём к существующему каталогу'), undefined);
-		assert.strictEqual(javaTooOldMessage(''), undefined);
+		assert.strictEqual(
+			javaTooOldMessage('Каталог cwd должен быть абсолютным путём к существующему каталогу', 25),
+			undefined
+		);
+		assert.strictEqual(javaTooOldMessage('', 25), undefined);
 	});
 });

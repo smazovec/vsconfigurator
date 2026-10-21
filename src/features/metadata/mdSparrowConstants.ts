@@ -10,14 +10,11 @@ export const MD_SPARROW_DEFAULT_REPO = 'yellow-hammer/md-sparrow';
 export const MD_SPARROW_JAR_REGEX = /md-sparrow-.*-all\.jar$/i;
 
 
-/** Java, под которую собран md-sparrow: более старая его jar не запустит. */
-export const MD_SPARROW_JAVA = 25;
-
 /** API Temurin JRE (ga) — редирект на архив */
-export function adoptiumBinaryUrl(): string {
+export function adoptiumBinaryUrl(javaVersion: number): string {
 	const { os, arch } = adoptiumOsArch();
 	// https://api.adoptium.net/swagger
-	return `https://api.adoptium.net/v3/binary/latest/${MD_SPARROW_JAVA}/ga/${os}/${arch}/jre/hotspot/normal/eclipse`;
+	return `https://api.adoptium.net/v3/binary/latest/${javaVersion}/ga/${os}/${arch}/jre/hotspot/normal/eclipse`;
 }
 
 function adoptiumOsArch(): { os: string; arch: string } {
