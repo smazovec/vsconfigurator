@@ -53,7 +53,7 @@ export function registerMeasureFeature(context: vscode.ExtensionContext): void {
 		),
 		vscode.commands.registerCommand('1c-platform-tools.debug.measure.showResults', () => {
 			if (results) {
-				void showMeasureResultsPanel(results);
+				void showMeasureResultsPanel(results, context.extensionUri);
 			} else {
 				void vscode.window.showInformationMessage('Нет результатов замера производительности.');
 			}
@@ -73,7 +73,7 @@ export function registerMeasureFeature(context: vscode.ExtensionContext): void {
 					showPanelTimer = setTimeout(() => {
 						showPanelTimer = undefined;
 						if (results) {
-							void showMeasureResultsPanel(results);
+							void showMeasureResultsPanel(results, context.extensionUri);
 						}
 					}, 500);
 				}

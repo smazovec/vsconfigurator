@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src {{CSP_SOURCE}}; style-src 'unsafe-inline'; script-src 'nonce-{{NONCE}}';">
+<style>
+	body { padding: 32px; color: var(--vscode-foreground); font-family: var(--vscode-font-family); }
+	header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+	header img { width: 48px; height: 48px; }
+	body.vscode-dark .light, body.vscode-high-contrast:not(.vscode-high-contrast-light) .light,
+		body:not(.vscode-dark):not(.vscode-high-contrast) .dark, body.vscode-high-contrast-light .dark { display: none; }
+	h1 { margin: 0; font-size: 1.5em; font-weight: 600; word-break: break-all; }
+	.kind { color: var(--vscode-descriptionForeground); margin-top: 4px; }
+	dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 24px; margin: 0 0 24px; }
+	dt { color: var(--vscode-descriptionForeground); }
+	dd { margin: 0; word-break: break-all; }
+	.missing { color: var(--vscode-errorForeground); margin-bottom: 24px; }
+	.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+	button { padding: 4px 14px; border: 1px solid var(--vscode-button-border, transparent); border-radius: 2px; cursor: pointer; font: inherit;
+		color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+	button:hover { background: var(--vscode-button-hoverBackground); }
+	button.secondary { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
+	button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
+</style>
+</head>
+<body>
+<header>
+	{{ICONS}}
+	<div>
+		<h1>{{TITLE}}</h1>
+		<div class="kind">{{KIND}}</div>
+	</div>
+</header>
+{{MISSING}}
+<dl>{{ROWS}}</dl>
+<div class="actions">
+	{{DECOMPILE}}
+	<button class="secondary" data-message="reveal">Показать в проводнике</button>
+</div>
+<script nonce="{{NONCE}}">
+	const vscode = acquireVsCodeApi();
+	for (const button of document.querySelectorAll('button[data-message]')) {
+		button.addEventListener('click', () => vscode.postMessage({ type: button.dataset.message }));
+	}
+</script>
+</body>
+</html>

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-{{NONCE}}';">
+<style>
+{{CHROME_STYLES}}
+	.toolbar input[type=text] { width: 220px; }
+	/* Подключение слева от кнопок: они уходят к правому краю.
+	   Число строк не сжимается — длинное имя подключения обрезается, счётчик остаётся. */
+	.toolbar .subtitle { color: var(--vscode-descriptionForeground); font-size: 0.85em;
+		margin-right: auto; display: flex; align-items: baseline; min-width: 0; }
+	.toolbar .subtitle .connection { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+	.toolbar .subtitle .count { flex-shrink: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+	.tabs { display: flex; gap: 4px; }
+	.tabs button.active { background: var(--vscode-button-background); color: var(--vscode-button-foreground);
+		outline: 1px solid var(--vscode-contrastActiveBorder, transparent); outline-offset: 1px; }
+	.scroll { flex: 1; min-height: 0; overflow: auto; }
+	table { border-collapse: collapse; width: 100%; font-size: 0.88em; }
+	th, td { padding: 5px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+	th { position: sticky; top: 0; background: var(--vscode-editor-background); cursor: pointer;
+		user-select: none; font-weight: 600; }
+	th:hover { color: var(--vscode-textLink-foreground); }
+	th .arrow { opacity: 0.6; margin-left: 4px; }
+	td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+	/* Строки выделяются щелчком, поэтому выделять текст мышью незачем */
+	tbody { user-select: none; }
+	tbody tr { cursor: default; }
+	tbody tr:hover { background: var(--vscode-list-hoverBackground); }
+	tbody tr.picked { background: var(--vscode-list-activeSelectionBackground);
+		color: var(--vscode-list-activeSelectionForeground);
+		outline: 1px dotted var(--vscode-contrastActiveBorder, transparent); outline-offset: -1px; }
+	td.actions { text-align: right; }
+	td.actions button { margin-left: 4px; }
+	.state { padding: 14px 18px; color: var(--vscode-descriptionForeground); }
+	.state.error { color: var(--fail); }
+</style>
+</head>
+<body>
+<div class="chrome">
+	<div class="toolbar">
+		<div class="tabs" id="tabs"></div>
+		<input type="text" id="filter" placeholder="Поиск по таблице">
+		<span class="subtitle">
+			<span class="connection" id="subtitle"></span>
+			<span class="count" id="rowcount"></span>
+		</span>
+		<button id="bulk" hidden></button>
+		<button id="refresh">Обновить</button>
+		<button id="csv" title="Скопировать выбранные строки, а без выбора всю таблицу">Копировать</button>
+	</div>
+	<div class="scroll" id="scroll">
+		<div class="state" id="state">Загружаю…</div>
+		<table id="table" hidden><thead id="head"></thead><tbody id="body"></tbody></table>
+	</div>
+</div>
+<script nonce="{{NONCE}}">
+const vscodeApi = acquireVsCodeApi();
+const TAB_TITLES = {
+	infobases: 'Информационные базы',
+	sessions: 'Сеансы',
+	connections: 'Соединения',
+	locks: 'Блокировки',
+};
+const EMPTY_TITLES = {
+	infobases: 'Информационных баз нет',
+	sessions: 'Сеансов нет',
+	connections: 'Соединений нет',
+	locks: 'Блокировок нет',
+};
+const rowCountLabel = {{ROW_COUNT_LABEL}};
+let kind = '';
+let kinds = [];
+let columns = [];
+let rows = [];
+let connectionLabel = '';
+let picked = new Set();
+/** Строка, от которой Shift отмеряет диапазон */
+let anchorId = null;
+let sortIndex = 0;
+let sortAscending = true;
+let filter = '';
+
+function post(message) { vscodeApi.postMessage(message); }
+
+/** Действие над пачкой строк, если оно есть у списка */
+function bulkKind() { return kind === 'sessions' || kind === 'connections' ? kind : ''; }
+
+function visibleRows() {
+	const needle = filter.trim().toLowerCase();
+	const filtered = needle === ''
+		? rows
+		: rows.filter((row) => row.cells.some((cell) => cell.text.toLowerCase().includes(needle)));
+	const sorted = filtered.slice().sort((a, b) => {
+		const left = a.cells[sortIndex] ? a.cells[sortIndex].sort : '';
+		const right = b.cells[sortIndex] ? b.cells[sortIndex].sort : '';
+		if (typeof left === 'number' && typeof right === 'number') { return left - right; }
+		return String(left).localeCompare(String(right), 'ru');
+	});
+	return sortAscending ? sorted : sorted.reverse();
+}
+
+function numeric(column) {
+	return column.kind === 'number' || column.kind === 'bytes' || column.kind === 'millis';
+}
+
+/** Выбранные строки среди показанных: скрытая фильтром строка в действие не идёт */
+function pickedRows() {
+	return visibleRows().filter((row) => picked.has(row.id));
+}
+
+/**
+ * Отмечает строку так же, как список VS Code: щелчок выбирает одну, Ctrl
+ * добавляет и снимает, Shift берёт диапазон от предыдущего щелчка.
+ */
+function pickRow(row, index, event) {
+	const shown = visibleRows();
+	const anchorIndex = anchorId === null ? -1 : shown.findIndex((item) => item.id === anchorId);
+	if (event.shiftKey && anchorIndex >= 0) {
+		const from = Math.min(anchorIndex, index);
+		const to = Math.max(anchorIndex, index);
+		picked = new Set(shown.slice(from, to + 1).map((item) => item.id));
+		render();
+		return;
+	}
+	if (event.ctrlKey || event.metaKey) {
+		if (picked.has(row.id)) { picked.delete(row.id); } else { picked.add(row.id); }
+	} else {
+		picked = new Set([row.id]);
+	}
+	anchorId = row.id;
+	render();
+}
+
+function clearPicked() {
+	picked = new Set();
+	anchorId = null;
+}
+
+/** Копирует выбранные строки, а без выбора — всю таблицу */
+function copyRows() {
+	const selected = pickedRows();
+	post({ type: 'copyCsv', kind: kind, rows: selected.length > 0 ? selected : visibleRows() });
+}
+
+function renderTabs() {
+	const tabs = document.getElementById('tabs');
+	tabs.textContent = '';
+	for (const item of kinds) {
+		const button = document.createElement('button');
+		button.textContent = TAB_TITLES[item];
+		button.className = item === kind ? 'active' : '';
+		button.addEventListener('click', () => selectKind(item));
+		tabs.appendChild(button);
+	}
+}
+
+function renderBulk() {
+	const button = document.getElementById('bulk');
+	const count = pickedRows().length;
+	button.hidden = bulkKind() === '' || count === 0;
+	if (button.hidden) { return; }
+	button.textContent = (kind === 'sessions' ? 'Завершить выбранные' : 'Разорвать выбранные')
+		+ ' (' + count + ')';
+}
+
+function renderHead() {
+	const head = document.getElementById('head');
+	head.textContent = '';
+	const tr = document.createElement('tr');
+	columns.forEach((column, index) => {
+		const th = document.createElement('th');
+		th.textContent = column.title;
+		if (numeric(column)) { th.className = 'num'; }
+		if (index === sortIndex) {
+			const arrow = document.createElement('span');
+			arrow.className = 'arrow';
+			arrow.textContent = sortAscending ? '▲' : '▼';
+			th.appendChild(arrow);
+		}
+		th.addEventListener('click', () => {
+			if (sortIndex === index) { sortAscending = !sortAscending; }
+			else { sortIndex = index; sortAscending = true; }
+			render();
+		});
+		tr.appendChild(th);
+	});
+	if (kind !== 'locks') {
+		const actions = document.createElement('th');
+		actions.textContent = 'Действия';
+		tr.appendChild(actions);
+	}
+	head.appendChild(tr);
+}
+
+function actionButton(label, title, handler) {
+	const button = document.createElement('button');
+	button.textContent = label;
+	button.title = title;
+	button.addEventListener('click', handler);
+	return button;
+}
+
+function rowActions(row) {
+	const actions = document.createElement('td');
+	actions.className = 'actions';
+	if (kind === 'sessions') {
+		actions.appendChild(actionButton('Прервать вызов', 'Прервать текущий серверный вызов',
+			() => post({ type: 'interrupt', id: row.id, label: row.label })));
+		actions.appendChild(actionButton('Завершить', 'Завершить сеанс',
+			() => post({ type: 'terminate', id: row.id, label: row.label })));
+	} else if (kind === 'connections') {
+		actions.appendChild(actionButton('Разорвать', 'Разорвать соединение',
+			() => post({ type: 'disconnect', id: row.id, processId: row.processId, label: row.label })));
+	} else if (kind === 'infobases') {
+		actions.appendChild(actionButton('Свойства', 'Открыть свойства базы',
+			() => post({ type: 'infobaseProperties', id: row.id })));
+		actions.appendChild(actionButton('Удалить', 'Удалить базу из кластера',
+			() => post({ type: 'infobaseDrop', id: row.id })));
+	}
+	return actions;
+}
+
+function renderBody() {
+	const body = document.getElementById('body');
+	body.textContent = '';
+	visibleRows().forEach((row, index) => {
+		const tr = document.createElement('tr');
+		if (picked.has(row.id)) { tr.className = 'picked'; }
+		// Кнопки строки выполняют своё действие и выделение не меняют
+		tr.addEventListener('click', (event) => {
+			if (event.target.closest('button')) { return; }
+			pickRow(row, index, event);
+		});
+		row.cells.forEach((cell, cellIndex) => {
+			const td = document.createElement('td');
+			td.textContent = cell.text;
+			if (numeric(columns[cellIndex])) { td.className = 'num'; }
+			tr.appendChild(td);
+		});
+		if (kind !== 'locks') { tr.appendChild(rowActions(row)); }
+		body.appendChild(tr);
+	});
+}
+
+function renderCount(shownCount) {
+	const count = document.getElementById('rowcount');
+	if (connectionLabel === '') {
+		count.textContent = '';
+		return;
+	}
+	count.textContent = ' · ' + rowCountLabel(shownCount, rows.length, filter);
+}
+
+function render() {
+	const table = document.getElementById('table');
+	const state = document.getElementById('state');
+	const shown = visibleRows();
+	renderTabs();
+	renderBulk();
+	renderCount(shown.length);
+	table.hidden = shown.length === 0;
+	state.hidden = shown.length > 0;
+	state.className = 'state';
+	if (shown.length === 0) {
+		state.textContent = rows.length === 0 ? EMPTY_TITLES[kind] : 'Ничего не найдено';
+		return;
+	}
+	renderHead();
+	renderBody();
+}
+
+function selectKind(next) {
+	kind = next;
+	sortIndex = 0;
+	sortAscending = true;
+	clearPicked();
+	post({ type: 'load', kind: kind });
+}
+
+document.getElementById('refresh').addEventListener('click', () => post({ type: 'load', kind: kind }));
+document.getElementById('csv').addEventListener('click', copyRows);
+document.getElementById('bulk').addEventListener('click', () => {
+	const rowsToUse = pickedRows();
+	if (rowsToUse.length === 0) { return; }
+	if (kind === 'sessions') {
+		post({ type: 'terminateMany', ids: rowsToUse.map((row) => row.id) });
+	} else {
+		post({ type: 'disconnectMany', items: rowsToUse.map((row) => ({ id: row.id, processId: row.processId })) });
+	}
+});
+document.getElementById('filter').addEventListener('input', (event) => {
+	filter = event.target.value;
+	render();
+});
+
+// Сочетания клавиш проверяются по коду клавиши: раскладка на них не влияет
+document.addEventListener('keydown', (event) => {
+	if (event.target instanceof HTMLInputElement) { return; }
+	if ((event.ctrlKey || event.metaKey) && event.code === 'KeyA') {
+		picked = new Set(visibleRows().map((row) => row.id));
+		anchorId = null;
+		event.preventDefault();
+		render();
+		return;
+	}
+	if ((event.ctrlKey || event.metaKey) && event.code === 'KeyC') {
+		copyRows();
+		event.preventDefault();
+		return;
+	}
+	if (event.code === 'Escape' && picked.size > 0) {
+		clearPicked();
+		render();
+	}
+});
+
+window.addEventListener('error', (event) => {
+	post({ type: 'error', message: event.message + ' (' + event.lineno + ':' + event.colno + ')' });
+});
+
+window.addEventListener('message', (event) => {
+	const data = event.data;
+	if (data.type === 'loading') {
+		document.getElementById('table').hidden = true;
+		const state = document.getElementById('state');
+		state.hidden = false;
+		state.className = 'state';
+		state.textContent = 'Загружаю…';
+		return;
+	}
+	if (data.type === 'failed') {
+		kinds = data.kinds || kinds;
+		renderTabs();
+		document.getElementById('table').hidden = true;
+		document.getElementById('rowcount').textContent = '';
+		const state = document.getElementById('state');
+		state.hidden = false;
+		state.className = 'state error';
+		state.textContent = data.message;
+		return;
+	}
+	if (data.type === 'data') {
+		kind = data.kind;
+		kinds = data.kinds;
+		columns = data.columns;
+		rows = data.rows;
+		connectionLabel = data.subtitle;
+		// Выбор сбрасывается: строки перечитаны, и часть отмеченных объектов на
+		// сервере могло уже не остаться.
+		clearPicked();
+		document.getElementById('subtitle').textContent = data.subtitle;
+		render();
+	}
+});
+</script>
+</body>
+</html>

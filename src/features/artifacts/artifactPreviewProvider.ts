@@ -10,6 +10,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { binaryArtifactKind, type BinaryArtifactKind } from './artifactKinds';
 import { formatBytes } from '../clusters/presentation';
+import { fillWebviewTemplate, loadWebviewTemplate } from '../../shared/webviewTemplate';
 
 export const ARTIFACT_PREVIEW_VIEW_TYPE = '1c-platform-tools.artifactPreview';
 
@@ -17,7 +18,10 @@ export const ARTIFACT_PREVIEW_VIEW_TYPE = '1c-platform-tools.artifactPreview';
 type WebviewMessage = { type: 'decompile' } | { type: 'reveal' };
 
 export class ArtifactPreviewProvider implements vscode.CustomReadonlyEditorProvider {
-	private constructor(private readonly iconsRoot: vscode.Uri) {}
+	private constructor(
+		private readonly extensionUri: vscode.Uri,
+		private readonly iconsRoot: vscode.Uri
+	) {}
 
 	/**
 	 * Регистрирует карточку бинарных файлов 1С.
@@ -29,7 +33,7 @@ export class ArtifactPreviewProvider implements vscode.CustomReadonlyEditorProvi
 		const iconsRoot = vscode.Uri.joinPath(context.extensionUri, 'resources', 'metadata-tree-icons');
 		return vscode.window.registerCustomEditorProvider(
 			ARTIFACT_PREVIEW_VIEW_TYPE,
-			new ArtifactPreviewProvider(iconsRoot),
+			new ArtifactPreviewProvider(context.extensionUri, iconsRoot),
 			{ supportsMultipleEditorsPerDocument: true }
 		);
 	}
@@ -49,7 +53,7 @@ export class ArtifactPreviewProvider implements vscode.CustomReadonlyEditorProvi
 				(value) => value,
 				() => undefined
 			);
-			webview.html = buildHtml(webview, this.iconsRoot, uri, kind, stat);
+			webview.html = await buildHtml(this.extensionUri, webview, this.iconsRoot, uri, kind, stat);
 		};
 
 		const watcher = vscode.workspace.createFileSystemWatcher(
@@ -79,13 +83,14 @@ function escapeHtml(text: string): string {
 }
 
 /** HTML карточки: значок вида, сведения о файле и кнопки действий. */
-function buildHtml(
+async function buildHtml(
+	extensionUri: vscode.Uri,
 	webview: vscode.Webview,
 	iconsRoot: vscode.Uri,
 	uri: vscode.Uri,
 	kind: BinaryArtifactKind | undefined,
 	stat: vscode.FileStat | undefined
-): string {
+): Promise<string> {
 	const nonce = Math.random().toString(36).slice(2);
 	const icon = (theme: string[]): string =>
 		kind ? webview.asWebviewUri(vscode.Uri.joinPath(iconsRoot, ...theme, kind.icon)).toString() : '';
@@ -96,51 +101,18 @@ function buildHtml(
 				['Путь', vscode.workspace.asRelativePath(uri, false)],
 			]
 		: [['Путь', vscode.workspace.asRelativePath(uri, false)]];
-	return /* html */ `<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource}; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
-<style>
-	body { padding: 32px; color: var(--vscode-foreground); font-family: var(--vscode-font-family); }
-	header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-	header img { width: 48px; height: 48px; }
-	body.vscode-dark .light, body.vscode-high-contrast:not(.vscode-high-contrast-light) .light,
-		body:not(.vscode-dark):not(.vscode-high-contrast) .dark, body.vscode-high-contrast-light .dark { display: none; }
-	h1 { margin: 0; font-size: 1.5em; font-weight: 600; word-break: break-all; }
-	.kind { color: var(--vscode-descriptionForeground); margin-top: 4px; }
-	dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 24px; margin: 0 0 24px; }
-	dt { color: var(--vscode-descriptionForeground); }
-	dd { margin: 0; word-break: break-all; }
-	.missing { color: var(--vscode-errorForeground); margin-bottom: 24px; }
-	.actions { display: flex; flex-wrap: wrap; gap: 8px; }
-	button { padding: 4px 14px; border: 1px solid var(--vscode-button-border, transparent); border-radius: 2px; cursor: pointer; font: inherit;
-		color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
-	button:hover { background: var(--vscode-button-hoverBackground); }
-	button.secondary { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
-	button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
-</style>
-</head>
-<body>
-<header>
-	${kind ? `<img class="light" src="${icon([])}" alt=""><img class="dark" src="${icon(['dark'])}" alt="">` : ''}
-	<div>
-		<h1>${escapeHtml(path.basename(uri.fsPath))}</h1>
-		<div class="kind">${escapeHtml(kind?.label ?? 'Файл 1С')}</div>
-	</div>
-</header>
-${stat ? '' : '<div class="missing">Файл не найден</div>'}
-<dl>${rows.map(([name, value]) => `<dt>${name}</dt><dd>${escapeHtml(value)}</dd>`).join('')}</dl>
-<div class="actions">
-	${kind && stat ? '<button data-message="decompile">Разобрать</button>' : ''}
-	<button class="secondary" data-message="reveal">Показать в проводнике</button>
-</div>
-<script nonce="${nonce}">
-	const vscode = acquireVsCodeApi();
-	for (const button of document.querySelectorAll('button[data-message]')) {
-		button.addEventListener('click', () => vscode.postMessage({ type: button.dataset.message }));
-	}
-</script>
-</body>
-</html>`;
+	const icons = kind
+		? `<img class="light" src="${icon([])}" alt=""><img class="dark" src="${icon(['dark'])}" alt="">`
+		: '';
+	const template = await loadWebviewTemplate(extensionUri, 'artifact-preview.html');
+	return fillWebviewTemplate(template, {
+		CSP_SOURCE: webview.cspSource,
+		NONCE: nonce,
+		ICONS: icons,
+		TITLE: escapeHtml(path.basename(uri.fsPath)),
+		KIND: escapeHtml(kind?.label ?? 'Файл 1С'),
+		MISSING: stat ? '' : '<div class="missing">Файл не найден</div>',
+		ROWS: rows.map(([name, value]) => `<dt>${name}</dt><dd>${escapeHtml(value)}</dd>`).join(''),
+		DECOMPILE: kind && stat ? '<button data-message="decompile">Разобрать</button>' : '',
+	});
 }

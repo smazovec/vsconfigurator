@@ -61,10 +61,10 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 
 	registerDebugFeature(context);
 	context.subscriptions.push(ProfileEditorProvider.register(context));
-	context.subscriptions.push(PipelineEditorProvider.register());
+	context.subscriptions.push(PipelineEditorProvider.register(context.extensionUri));
 	context.subscriptions.push(PipelineTaskProvider.register());
 	context.subscriptions.push(registerFormSaveCommand());
-	context.subscriptions.push(HooksEditorProvider.register());
+	context.subscriptions.push(HooksEditorProvider.register(context.extensionUri));
 	context.subscriptions.push(ArtifactPreviewProvider.register(context));
 	context.subscriptions.push(SpreadsheetEditorProvider.register(context));
 	const isProject = await detectAndSetInitialProjectContext();

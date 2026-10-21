@@ -4,6 +4,7 @@
  * @module metadataSearchView
  */
 import * as vscode from 'vscode';
+import { fillWebviewTemplate, loadWebviewTemplate } from '../../shared/webviewTemplate';
 
 export const METADATA_SEARCH_VIEW_ID = '1c-platform-tools-metadata-search';
 
@@ -23,10 +24,10 @@ export class MetadataSearchViewProvider implements vscode.WebviewViewProvider {
 		private readonly _currentQuery: () => string = () => ''
 	) {}
 
-	resolveWebviewView(view: vscode.WebviewView): void {
+	async resolveWebviewView(view: vscode.WebviewView): Promise<void> {
 		this._view = view;
 		view.webview.options = { enableScripts: true, localResourceRoots: [this._extensionUri] };
-		view.webview.html = this.html();
+		view.webview.html = await this.html();
 		view.webview.onDidReceiveMessage((msg: unknown) => {
 			const type = typeof msg === 'object' && msg !== null ? (msg as { type?: string }).type : undefined;
 			if (type === 'ready') {
@@ -53,108 +54,8 @@ export class MetadataSearchViewProvider implements vscode.WebviewViewProvider {
 		this._view?.webview.postMessage({ type: 'setQuery', query });
 	}
 
-	private html(): string {
-		return `<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8" />
-<style>
-	/* Секция занимает минимум места: только строка ввода. */
-	body {
-		margin: 0;
-		padding: 2px 8px 3px 8px;
-		font-family: var(--vscode-font-family);
-		font-size: var(--vscode-font-size);
-		overflow: hidden;
-	}
-	.wrap {
-		position: relative;
-		display: block;
-	}
-	input {
-		width: 100%;
-		box-sizing: border-box;
-		padding: 3px 22px 3px 6px;
-		border-radius: 2px;
-		border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
-		background: var(--vscode-input-background);
-		color: var(--vscode-input-foreground);
-		font-family: inherit;
-		font-size: inherit;
-	}
-	input:focus {
-		outline: 1px solid var(--vscode-focusBorder);
-		outline-offset: -1px;
-	}
-	input::placeholder {
-		color: var(--vscode-input-placeholderForeground);
-	}
-	.clear {
-		position: absolute;
-		top: 50%;
-		right: 4px;
-		transform: translateY(-50%);
-		border: none;
-		background: transparent;
-		color: var(--vscode-descriptionForeground);
-		cursor: pointer;
-		padding: 0 2px;
-		font-size: 13px;
-		line-height: 1;
-	}
-	.clear:hover {
-		color: var(--vscode-foreground);
-	}
-	.clear.hidden {
-		display: none;
-	}
-</style>
-</head>
-<body>
-	<label class="wrap">
-		<input id="q" type="text" placeholder="Поиск по метаданным…" autocomplete="off" />
-		<button id="clear" class="clear hidden" type="button" title="Очистить">×</button>
-	</label>
-	<script>
-		const vscodeApi = acquireVsCodeApi();
-		const input = document.getElementById('q');
-		const clearBtn = document.getElementById('clear');
-		let timer;
-		function send() {
-			clearBtn.classList.toggle('hidden', input.value.length === 0);
-			clearTimeout(timer);
-			timer = setTimeout(function () {
-				vscodeApi.postMessage({ type: 'search', query: input.value });
-			}, ${INPUT_DEBOUNCE_MS});
-		}
-		input.addEventListener('input', send);
-		input.addEventListener('keydown', function (e) {
-			if (e.key === 'Escape' && input.value.length > 0) {
-				input.value = '';
-				send();
-			}
-		});
-		clearBtn.addEventListener('click', function () {
-			input.value = '';
-			input.focus();
-			send();
-		});
-		window.addEventListener('message', function (event) {
-			if (!event.data) {
-				return;
-			}
-			if (event.data.type === 'clear') {
-				input.value = '';
-				clearBtn.classList.add('hidden');
-			}
-			if (event.data.type === 'setQuery') {
-				input.value = event.data.query || '';
-				clearBtn.classList.toggle('hidden', input.value.length === 0);
-			}
-		});
-		vscodeApi.postMessage({ type: 'ready' });
-	</script>
-</body>
-</html>`;
+	private async html(): Promise<string> {
+		const template = await loadWebviewTemplate(this._extensionUri, 'metadata-search.html');
+		return fillWebviewTemplate(template, { DEBOUNCE_MS: String(INPUT_DEBOUNCE_MS) });
 	}
 }

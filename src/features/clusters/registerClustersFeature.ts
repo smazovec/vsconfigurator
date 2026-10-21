@@ -64,7 +64,7 @@ export function registerClustersFeature(context: vscode.ExtensionContext): vscod
 
 
 
-	const editor = new ClusterConnectionsEditor(store, credentials, service, provider);
+	const editor = new ClusterConnectionsEditor(store, credentials, service, provider, context.extensionUri);
 	// Причина уведомления подсказывает группу: про базы открываются наборы баз,
 	// про центральный сервер — его администраторы
 	openCredentialsForm = (event) =>
@@ -76,11 +76,11 @@ export function registerClustersFeature(context: vscode.ExtensionContext): vscod
 					? 'agent'
 					: 'cluster',
 		});
-	const activity = new ClusterActivityPanel(service, provider);
+	const activity = new ClusterActivityPanel(service, provider, context.extensionUri);
 	// Одна вкладка на все объекты дерева: карточка администратора отдельна,
 	// потому что открывается и для создания, когда объекта ещё нет.
-	const objectProperties = new PropertiesPanel('1cClusterObjectProperties');
-	const adminProperties = new PropertiesPanel('1cClusterAdminProperties');
+	const objectProperties = new PropertiesPanel('1cClusterObjectProperties', context.extensionUri);
+	const adminProperties = new PropertiesPanel('1cClusterAdminProperties', context.extensionUri);
 
 	const autoRefresh = new ClustersAutoRefresh(
 		() => provider.refresh(),
