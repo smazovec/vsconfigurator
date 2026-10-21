@@ -67,13 +67,13 @@ export const COMPONENTS: ComponentSpec[] = [
 	},
 	{
 		id: 'jre',
-		title: 'Portable JRE 25 (нужна дереву метаданных)',
+		title: 'Portable JRE (нужна дереву метаданных)',
 		pathSetting: 'components.path.java',
 		autoloadSetting: 'components.autoload.java',
-		version: async (context) => portableJreVersion(context),
+		version: portableJreVersion,
 		clear: clearPortableJreCache,
 		download: downloadPortableJre,
-		cachePath: async (context) => portableJreJavaPath(context),
+		cachePath: portableJreJavaPath,
 	},
 	{
 		id: 'metadataTree',

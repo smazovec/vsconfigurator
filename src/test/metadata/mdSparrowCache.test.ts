@@ -87,13 +87,13 @@ suite('кэш ответов md-sparrow', () => {
 		const jarPath = path.join(dir, 'md-sparrow-all.jar');
 		fs.writeFileSync(jarPath, 'сборка');
 		try {
-			assert.strictEqual(await runtimeSalt({ java: 'java', jarPath, releaseTag: 'v0.5.7' }), 'v0.5.7');
-			const first = await runtimeSalt({ java: 'java', jarPath });
+			assert.strictEqual(await runtimeSalt({ java: 'java', jarPath, releaseTag: 'v0.5.7', javaVersion: 25 }), 'v0.5.7');
+			const first = await runtimeSalt({ java: 'java', jarPath, javaVersion: 25 });
 			assert.ok(first.startsWith(jarPath), first);
 
 			fs.writeFileSync(jarPath, 'сборка следующая');
-			assert.notStrictEqual(await runtimeSalt({ java: 'java', jarPath }), first);
-			assert.strictEqual(await runtimeSalt({ java: 'java', jarPath: path.join(dir, 'нет.jar') }), path.join(dir, 'нет.jar'));
+			assert.notStrictEqual(await runtimeSalt({ java: 'java', jarPath, javaVersion: 25 }), first);
+			assert.strictEqual(await runtimeSalt({ java: 'java', jarPath: path.join(dir, 'нет.jar'), javaVersion: 25 }), path.join(dir, 'нет.jar'));
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}

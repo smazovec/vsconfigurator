@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { ZipFile } from 'yazl';
 import { ensureOnecDebugAdapter } from '../../features/debug/onecDebugAdapterBootstrap';
 import { edtWorkspaceDir, readEdtSettings } from '../../features/edt/edtRunner';
 import { ensureMdSparrowRuntime } from '../../features/metadata/mdSparrowBootstrap';
@@ -104,6 +105,22 @@ suite('настройки компонентов и EDT читаются для 
 		return file;
 	}
 
+	/** JAR md-sparrow: требуемая Java объявлена в манифесте. */
+	async function writeJar(root: string, name: string): Promise<string> {
+		const file = path.join(root, name);
+		const zip = new ZipFile();
+		zip.addBuffer(
+			Buffer.from('Manifest-Version: 1.0\r\nX-Required-Java-Version: 25\r\n\r\n'),
+			'META-INF/MANIFEST.MF'
+		);
+		zip.end();
+		await new Promise<void>((resolve, reject) => {
+			const out = fs.createWriteStream(file);
+			zip.outputStream.pipe(out).on('close', resolve).on('error', reject);
+		});
+		return file;
+	}
+
 	/** Области чтения совпадают с корнями проектов. */
 	function assertScopes(...roots: string[]): void {
 		assert.ok(scopes.length > 0, 'настройки проекта не читались');
@@ -113,8 +130,8 @@ suite('настройки компонентов и EDT читаются для 
 	}
 
 	test('md-sparrow запускается jar и java из настроек проекта', async () => {
-		const firstJar = touch(first, 'md-sparrow-first-all.jar');
-		const secondJar = touch(second, 'md-sparrow-second-all.jar');
+		const firstJar = await writeJar(first, 'md-sparrow-first-all.jar');
+		const secondJar = await writeJar(second, 'md-sparrow-second-all.jar');
 		values.set(first, { 'components.path.metadataJar': firstJar, 'components.path.java': 'java-первого' });
 		values.set(second, { 'components.path.metadataJar': secondJar, 'components.path.java': 'java-второго' });
 
