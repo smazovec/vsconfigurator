@@ -19,7 +19,7 @@ export function registerHelpAndSettingsCommands(context: vscode.ExtensionContext
 		() => {
 			void vscode.env.openExternal(
 				vscode.Uri.parse(
-					'https://github.com/yellow-hammer/vscode-1c-platform-tools/issues/new?template=bug_report.md'
+					'https://github.com/smazovec/vsconfigurator/issues/new?template=bug_report.md'
 				)
 			);
 		}
@@ -30,7 +30,7 @@ export function registerHelpAndSettingsCommands(context: vscode.ExtensionContext
 		() => {
 			void vscode.env.openExternal(
 				vscode.Uri.parse(
-					'https://github.com/yellow-hammer/vscode-1c-platform-tools/blob/main/docs/README.md'
+					'https://github.com/smazovec/vsconfigurator/blob/main/docs/README.md'
 				)
 			);
 		}
@@ -41,7 +41,7 @@ export function registerHelpAndSettingsCommands(context: vscode.ExtensionContext
 		() => {
 			void vscode.env.openExternal(
 				vscode.Uri.parse(
-					'https://marketplace.visualstudio.com/items?itemName=yellow-hammer.1c-platform-tools&ssr=false#review-details'
+					'https://github.com/smazovec/vsconfigurator/issues'
 				)
 			);
 		}

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-const OUTPUT_CHANNEL_NAME = '1C: Platform Tools';
+const OUTPUT_CHANNEL_NAME = 'VSConfigurator';
 
 let outputChannel: vscode.LogOutputChannel | undefined;
 

@@ -327,7 +327,7 @@ export const TREE_GROUPS: TreeGroup[] = [
 			{ command: '1c-platform-tools.help.copyEnvironmentSummary', title: 'Скопировать сводку окружения', treeLabel: 'Скопировать сводку окружения', icon: 'copy' },
 			{ command: '1c-platform-tools.help.openCreateIssue', title: 'Сообщить о проблемах', treeLabel: 'Сообщить о проблемах', icon: 'comment-discussion' },
 			{ command: '1c-platform-tools.help.openWriteReview', title: 'Написать отзыв', treeLabel: 'Написать отзыв', icon: 'feedback' },
-			{ command: '1c-platform-tools.help.openSponsor', title: 'Стать спонсором', treeLabel: 'Стать спонсором', icon: 'heart' },
+			{ command: '1c-platform-tools.help.openSponsor', title: 'Поддержать исходный проект', treeLabel: 'Поддержать исходный проект', icon: 'heart' },
 		],
 	},
 ];

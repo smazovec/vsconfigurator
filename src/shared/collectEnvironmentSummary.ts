@@ -22,7 +22,7 @@ import { projectConfiguration } from './projectConfiguration';
 import { untrustedWorkspaceBlocks } from './workspaceTrust';
 
 const execFileAsync = promisify(execFile);
-const HOST_EXTENSION_ID = 'yellow-hammer.1c-platform-tools';
+const HOST_EXTENSION_ID = 'smazovec.vsconfigurator';
 const MCP_EXTENSION_ID = 'yellow-hammer.mcp-1c-platform-tools';
 const CLI_VERSION_TIMEOUT_MS = 5_000;
 

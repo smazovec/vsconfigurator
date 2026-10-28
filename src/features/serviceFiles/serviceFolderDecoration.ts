@@ -29,7 +29,7 @@ export interface ServiceFolderDecoration {
  */
 export function serviceFolderDecoration(fsPath: string): ServiceFolderDecoration | undefined {
 	return path.basename(fsPath) === SERVICE_FOLDER
-		? { badge: '1С', tooltip: '1C: Platform Tools: служебные файлы проекта' }
+		? { badge: '1С', tooltip: 'VSConfigurator: служебные файлы проекта' }
 		: undefined;
 }
 

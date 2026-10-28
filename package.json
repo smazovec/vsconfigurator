@@ -1,7 +1,7 @@
 {
-  "name": "1c-platform-tools",
-  "displayName": "1C: Platform Tools",
-  "description": "Разработка на 1С:Предприятии в VS Code (Cursor, Windsurf, VSCodium): проекты конфигуратора, 1С:EDT и OneScript, метаданные, vanessa-runner, тесты, отладка и MCP.",
+  "name": "vsconfigurator",
+  "displayName": "VSConfigurator",
+  "description": "VSConfigurator — независимый форк инструментов разработки на 1С:Предприятии в VS Code (Cursor, Windsurf, VSCodium): проекты конфигуратора, 1С:EDT и OneScript, метаданные, vanessa-runner, тесты, отладка и MCP.",
   "keywords": [
     "1c",
     "1с",
@@ -16,7 +16,7 @@
     "cursor"
   ],
   "version": "0.9.18",
-  "publisher": "yellow-hammer",
+  "publisher": "smazovec",
   "extensionKind": [
     "workspace"
   ],
@@ -49,7 +49,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yellow-hammer/vscode-1c-platform-tools"
+    "url": "https://github.com/smazovec/vsconfigurator"
   },
   "license": "MIT",
   "author": {
@@ -60,7 +60,7 @@
   "contributors": [
     "Ivan Karlo (i.karlo@outlook.com)"
   ],
-  "icon": "resources/1c-icon.png",
+  "icon": "resources/vsconfigurator-icon.png",
   "galleryBanner": {
     "color": "#0000FF",
     "theme": "dark"
@@ -2152,7 +2152,7 @@
       },
       {
         "command": "1c-platform-tools.help.openSponsor",
-        "title": "Стать спонсором",
+        "title": "Поддержать исходный проект",
         "category": "1С: Помощь и поддержка",
         "icon": "$(heart)"
       },
@@ -4038,9 +4038,9 @@
     "walkthroughs": [
       {
         "id": "1c-platform-tools.getStarted",
-        "title": "Начало работы с 1C: Platform Tools",
+        "title": "Начало работы с VSConfigurator",
         "description": "Проект, зависимости, панель команд, артефакты, служебные файлы, панель проектов, список дел, отладка 1С, тестирование, автоматизация, интеграция с AI и MCP, дерево метаданных, ER-диаграммы, автономный сервер.",
-        "icon": "resources/1c-icon.png",
+        "icon": "resources/vsconfigurator-icon.png",
         "steps": [
           {
             "id": "step1-create-open",

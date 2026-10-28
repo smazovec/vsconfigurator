@@ -47,7 +47,7 @@ class OnecDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptor
 }
 
 /** Куда смотреть за подробностями; добавляется к уведомлениям о проблемах адаптера. */
-const ADAPTER_FAILURE_HINT = 'Подробности в панели Output, канал 1C: Platform Tools.';
+const ADAPTER_FAILURE_HINT = 'Подробности в панели Output, канал VSConfigurator.';
 
 /**
  * Текст об аварийном завершении процесса адаптера; undefined, если адаптер завершился штатно

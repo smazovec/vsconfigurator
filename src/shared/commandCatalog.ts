@@ -22,7 +22,7 @@ export interface CommandCatalogEntry {
 	supportsWait: boolean;
 }
 
-const EXTENSION_ID = 'yellow-hammer.1c-platform-tools';
+const EXTENSION_ID = 'smazovec.vsconfigurator';
 
 /**
  * Читает команды из манифеста расширения.

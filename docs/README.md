@@ -1,6 +1,8 @@
 <img src="../resources/brand/cat-hi.png" alt="" width="72" align="right">
 
-# Документация 1C: Platform Tools
+# Документация VSConfigurator
+
+Документация независимого форка [1C: Platform Tools](https://github.com/yellow-hammer/vscode-1c-platform-tools); руководства по функциям унаследованы от исходного проекта. Установка и идентификатор форка описаны в [README](../README.md).
 
 > <img src="../resources/brand/cat-hi.png" alt="" width="26" align="left"> Каждый раздел — про одну функцию. Ищите по названию панели.
 
@@ -33,4 +35,4 @@
 - **[Внешние компоненты](components.md)** — отладчик, дерево метаданных, JRE, OVM и Allure: что скачать и какой настройкой подключить, обновление, токен GitHub, работа на машине без доступа к GitHub.
 - **[Сочетания клавиш](keyboard.md)** — раскладка панелей и команд, аналоги конфигуратора.
 
-Пошаговое знакомство со всеми панелями — walkthrough **Начало работы с 1C: Platform Tools** (Help → Welcome) или каталог [walkthrough](../walkthrough).
+Пошаговое знакомство со всеми панелями — walkthrough **Начало работы с VSConfigurator** (Help → Welcome) или каталог [walkthrough](../walkthrough).

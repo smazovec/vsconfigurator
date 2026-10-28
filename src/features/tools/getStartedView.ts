@@ -147,7 +147,7 @@ async function loadWalkthroughData(context: vscode.ExtensionContext): Promise<Wa
 
 	if (!walkthrough?.steps?.length) {
 		return {
-			title: walkthrough?.title ?? 'Начало работы с 1C: Platform Tools',
+			title: walkthrough?.title ?? 'Начало работы с VSConfigurator',
 			description: walkthrough?.description ?? 'Шесть шагов: проект, зависимости, панель команд, служебные файлы, панель проектов, список дел.',
 			steps,
 		};
@@ -182,7 +182,7 @@ async function loadWalkthroughData(context: vscode.ExtensionContext): Promise<Wa
 	}
 
 	return {
-		title: walkthrough.title ?? 'Начало работы с 1C: Platform Tools',
+		title: walkthrough.title ?? 'Начало работы с VSConfigurator',
 		description: walkthrough.description ?? 'Пошаговое знакомство с панелями расширения.',
 		steps,
 	};
