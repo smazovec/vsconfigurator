@@ -13,7 +13,7 @@ function findPackageJson(): string {
 		const candidate = path.join(dir, 'package.json');
 		if (existsSync(candidate)) {
 			const parsed = JSON.parse(readFileSync(candidate, 'utf8')) as { name?: string };
-			if (parsed.name === '1c-platform-tools') {
+			if (parsed.name === 'vsconfigurator') {
 				return candidate;
 			}
 		}

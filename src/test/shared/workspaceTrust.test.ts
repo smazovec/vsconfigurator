@@ -400,7 +400,7 @@ suite('недоверенная папка: канал и файл-тригге�
 		let channel: net.Server | null = null;
 		try {
 			distrustWorkspace();
-			channel = openIpcChannel(config, 'yellow-hammer.1c-platform-tools');
+			channel = openIpcChannel(config, 'smazovec.vsconfigurator');
 
 			assert.strictEqual(channel, null, 'канал не должен открываться');
 			assert.strictEqual(
@@ -410,7 +410,7 @@ suite('недоверенная папка: канал и файл-тригге�
 			);
 
 			setWorkspaceTrustProbe(() => true);
-			channel = openIpcChannel(config, 'yellow-hammer.1c-platform-tools');
+			channel = openIpcChannel(config, 'smazovec.vsconfigurator');
 
 			assert.ok(channel, 'после доверия канал должен открыться');
 			assert.strictEqual(

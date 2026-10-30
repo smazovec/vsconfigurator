@@ -1,12 +1,18 @@
-<img src="resources/brand/cat.png" alt="" width="88" align="right">
+<img src="resources/vsconfigurator-icon.png" alt="Иконка VSConfigurator" width="88" align="right">
 
-# 1C: Platform Tools
+# VSConfigurator
 
-[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/yellow-hammer.1c-platform-tools?label=VS%20Marketplace&logo=visualstudiocode&color=0098FF)](https://marketplace.visualstudio.com/items?itemName=yellow-hammer.1c-platform-tools)
-[![Open VSX](https://img.shields.io/open-vsx/v/yellow-hammer/1c-platform-tools?label=Open%20VSX&logo=eclipseide&color=C160EF)](https://open-vsx.org/extension/yellow-hammer/1c-platform-tools)
-[![OpenYellow](https://openyellow.openintegrations.dev/data/badges/1113279075.png)](https://openyellow.org/grid?filter=top&repo=1113279075)
-[![telegram chat](resources/badges/telegram-chat.png)](https://t.me/wonder_yellow)
-[![Ask Devin](resources/badges/deepwiki-badge.png)](https://deepwiki.com/yellow-hammer/vscode-1c-platform-tools)
+[Репозиторий VSConfigurator](https://github.com/smazovec/vsconfigurator) · [Сообщить о проблеме](https://github.com/smazovec/vsconfigurator/issues)
+
+## Установка VSIX
+
+Сборки этого форка устанавливаются из файла `vsconfigurator-0.9.18.vsix`. В GitHub откройте **Actions → CI → успешный запуск нужного коммита → Artifacts → vsix-<SHA>**, скачайте ZIP и извлеките VSIX (нужен вход в GitHub; срок хранения — 14 дней). Подробности сборки — в [CONTRIBUTING.md](CONTRIBUTING.md#сборка-установочного-пакета).
+
+Для приёмки используйте чистый профиль VS Code: **Profiles → Create Profile → Empty Profile**, затем **Extensions → … → Install from VSIX…**. После установки перезагрузите окно. В списке расширений должны быть имя **VSConfigurator**, новая иконка и идентификатор `smazovec.vsconfigurator` (меню расширения → **Copy Extension ID**). Для CLI: `code --install-extension ./vsconfigurator-0.9.18.vsix`; `code --list-extensions --show-versions` должен содержать `smazovec.vsconfigurator@0.9.18` в выбранном профиле.
+
+`publisher: smazovec` синтаксически допустим для упаковки; наличие и владение publisher в Marketplace не проверены. Публикации этого форка в Marketplace / Open VSX нет в рамках данной задачи.
+
+Внутренние ID `1c-platform-tools.*`, настройки, debug adapter, webview и форматы файлов сохранены. Независимая package identity не гарантирует бесконфликтную одновременную установку с оригиналом. Перенос globalStorage / workspaceState / секретов из исходного расширения не выполняется; VS Code выделяет новому ID собственное хранилище.
 
 Расширение для Visual Studio Code (а также Cursor, Windsurf и VSCodium), которое собирает повседневные инструменты разработки 1С в одном интерфейсе: команды vanessa-runner, навигацию по проектам и артефактам, дерево метаданных, TODO-панель, отладку и интеграцию с AI-агентами. Работает с проектами в формате конфигуратора, 1С:EDT и OneScript.
 
@@ -14,8 +20,8 @@
 
 ## Документация
 
-- Руководства по функциям — на сайте [yellow-hammer.github.io/vscode-1c-platform-tools](https://yellow-hammer.github.io/vscode-1c-platform-tools/).
-- Знакомство с панелями по шагам — прямо в редакторе: **Help → Welcome → Начало работы с 1C: Platform Tools**.
+- Руководства исходного проекта по функциям — на сайте [yellow-hammer.github.io/vscode-1c-platform-tools](https://yellow-hammer.github.io/vscode-1c-platform-tools/).
+- Знакомство с панелями по шагам — прямо в редакторе: **Help → Welcome → Начало работы с VSConfigurator**.
 
 ## Возможности
 
@@ -90,17 +96,19 @@
 - По умолчанию расширение ищет `vrunner` и может использовать `oscript_modules/bin/vrunner.bat` проекта.
 - Пути в настройках проекта задаются относительно корня проекта, если не указано иное.
 
-## Подпись кода
+## Происхождение и лицензия
 
-Подпись кода для релизов предоставляется бесплатно программой [SignPath Foundation](https://signpath.org/), сертификат выпущен от её имени.
+VSConfigurator — независимый форк [1C: Platform Tools](https://github.com/yellow-hammer/vscode-1c-platform-tools) (автор Ivan Karlo), а не официальный продукт 1С или Microsoft / VS Code. Лицензия MIT и исходный copyright сохранены в [LICENSE](LICENSE). Версия `0.9.18` унаследована от исходного проекта; она не означает публикацию VSConfigurator в Marketplace. Утверждённая Сергеем иконка VSConfigurator подготовлена из предоставленного изображения без изменения дизайна. Исходная иконка `resources/1c-icon.png` сохранена как ресурс upstream.
 
-## Автор и поддержка
+Сведения о подписи релизов исходного проекта не являются подтверждением подписи сборок этого форка.
+
+## Автор исходного проекта и его поддержка
 
 <img src="resources/brand/cat-hi.png" alt="" width="72" align="right">
 
 Автор: Ivan Karlo (<i.karlo@outlook.com>)
 
-Поддержать проект:
+Поддержать исходный проект:
 
 - [Boosty](https://boosty.to/1carlo/donate)
 - [Чаевые](https://pay.cloudtips.ru/p/d752cb43)

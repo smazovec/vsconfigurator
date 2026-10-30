@@ -590,7 +590,7 @@ export function openIpcChannel(config: IpcServerConfig, extensionId: string): ne
 }
 
 export function startIpcServer(context: vscode.ExtensionContext): void {
-	const extensionId = 'yellow-hammer.1c-platform-tools';
+	const extensionId = 'smazovec.vsconfigurator';
 	let config = readConfig();
 	let activeServer: net.Server | null = null;
 

@@ -8,7 +8,7 @@ const log = logger.scope('app');
 export async function activate(context: vscode.ExtensionContext) {
 	const startedAt = Date.now();
 	const version = (context.extension.packageJSON as { version?: string }).version ?? '?';
-	log.info(`активация 1C: Platform Tools v${version}…`);
+	log.info(`активация VSConfigurator v${version}…`);
 	try {
 		await bootstrapApp(context);
 	} catch (err) {
