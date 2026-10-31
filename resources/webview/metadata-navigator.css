@@ -16,7 +16,11 @@ input::placeholder { color: var(--vscode-input-placeholderForeground); }
 .row:hover { background: var(--vscode-list-hoverBackground); }
 .row.selected { background: var(--vscode-list-inactiveSelectionBackground); color: var(--vscode-list-inactiveSelectionForeground); }
 #tree:focus .row.selected { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
-.row .twisty { width: 16px; height: 22px; padding: 0; flex: 0 0 16px; border: 0; }
+.row .twisty { width: 16px; height: 22px; padding: 0; flex: 0 0 16px; border: 0; color: inherit; }
+.row .twisty::before { content: ''; display: block; width: 16px; height: 16px; background: currentColor; mask: url('icons/chevron-right.svg') center / 16px no-repeat; }
+.row .twisty.expanded::before { mask-image: url('icons/chevron-down.svg'); }
+.row .twisty:disabled::before { display: none; }
+.row .twisty:hover:enabled { background: transparent; }
 .row img, .row .theme-icon { width: 16px; height: 16px; flex: 0 0 16px; }
 .row .label { text-overflow: ellipsis; overflow: hidden; min-width: 0; }
 .row .description { color: var(--vscode-descriptionForeground); overflow: hidden; text-overflow: ellipsis; }

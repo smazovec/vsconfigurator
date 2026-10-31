@@ -226,6 +226,8 @@ export class MetadataFilterViewProvider implements vscode.Disposable {
 		const iconDark = this.iconUri(webview, 'metadata-tree-icons', 'dark', 'subsystem.svg');
 		const template = await loadWebviewTemplate(this._context.extensionUri, 'metadata-filters.html');
 		return fillWebviewTemplate(template, { ICON_LIGHT: iconLight, ICON_DARK: iconDark,
+			CHEVRON_RIGHT: this.iconUri(webview, 'webview', 'icons', 'chevron-right.svg'),
+			CHEVRON_DOWN: this.iconUri(webview, 'webview', 'icons', 'chevron-down.svg'),
 			NONCE: randomBytes(24).toString('base64'), CSP_SOURCE: webview.cspSource });
 	}
 

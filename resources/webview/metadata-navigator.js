@@ -65,7 +65,7 @@
 				if (node.expandable) { el.setAttribute('aria-expanded', String(node.expanded)); }
 				el.classList.toggle('selected', selected === node.id); el.title = node.tooltip || node.label;
 				const twisty = document.createElement('button'); twisty.className = 'twisty'; twisty.tabIndex = -1; twisty.disabled = !node.expandable;
-				twisty.textContent = node.expandable ? (node.expanded ? '⌄' : '›') : '';
+				twisty.classList.toggle('expanded', node.expanded);
 				twisty.setAttribute('aria-label', node.expanded ? 'Свернуть' : 'Развернуть');
 				twisty.onclick = event => { event.stopPropagation(); select(node); expand(node, !node.expanded); }; el.append(twisty);
 				if (node.icon) {

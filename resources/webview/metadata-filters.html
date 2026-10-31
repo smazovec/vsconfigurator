@@ -74,11 +74,16 @@
 		visibility: hidden;
 		cursor: default;
 	}
-	.twisty svg {
+	.twisty::before {
+		content: '';
+		display: block;
 		width: 16px;
 		height: 16px;
-		fill: currentColor;
+		background: currentColor;
+		mask: url('{{CHEVRON_RIGHT}}') center / 16px no-repeat;
 	}
+	.twisty.expanded::before { mask-image: url('{{CHEVRON_DOWN}}'); }
+	.twisty:disabled::before { display: none; }
 	.node-icon {
 		width: 16px;
 		height: 16px;
@@ -155,7 +160,7 @@ function render(){
  function row(node,depth){
   if(!match(node))return;
   const el=document.createElement('div');el.className='row';el.style.paddingLeft=(4+depth*8)+'px';
-  const twist=document.createElement('button');twist.className='twisty';twist.textContent=node.children.length?(collapsed.has(node.key)?'›':'⌄'):'';twist.setAttribute('aria-label','Развернуть / свернуть '+node.name);twist.disabled=!node.children.length;
+  const twist=document.createElement('button');twist.className='twisty';twist.classList.toggle('expanded',!!input.value||!collapsed.has(node.key));twist.setAttribute('aria-label','Развернуть / свернуть '+node.name);twist.disabled=!node.children.length;
   twist.onclick=()=>{collapsed.has(node.key)?collapsed.delete(node.key):collapsed.add(node.key);render();};el.append(twist);
   const label=document.createElement('label');label.className='name';
   const box=document.createElement('input');box.type='checkbox';box.checked=checked.has(node.key);box.onchange=()=>{box.checked?checked.add(node.key):checked.delete(node.key);send({type:'toggle',key:node.key,checked:box.checked});};

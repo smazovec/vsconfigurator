@@ -44,7 +44,8 @@ export class MetadataNavigatorView implements vscode.WebviewViewProvider, vscode
 		view.webview.options = {
 			enableScripts: true,
 			localResourceRoots: [vscode.Uri.joinPath(this.context.extensionUri, 'resources'),
-				vscode.Uri.joinPath(this.context.globalStorageUri, 'metadata-tree-icons')],
+				// Генератор накладок использует fsPath + Uri.file; схема хранилища может быть vscode-userdata.
+				vscode.Uri.file(vscode.Uri.joinPath(this.context.globalStorageUri, 'metadata-tree-icons').fsPath)],
 		};
 		const nonce = randomBytes(24).toString('base64');
 		const resource = (name: string) => view.webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'webview', name)).toString();
