@@ -1,5 +1,7 @@
 # Приёмка навигатора метаданных — Issue #5
 
+> Уточнение по [комментарию 6539750120](https://github.com/smazovec/vsconfigurator/pull/6#issuecomment-6539750120): описанная ниже компоновка с отдельными views не удовлетворяет новому критерию единой секции. [Технический блокер, проверенные API и варианты решения](metadata-navigator-layout-blocker.md). Протокол ниже относится к исходной реализации PR, а не к выполненной UI-корректировке.
+
 Основание: [bounded task, comment 6539036004](https://github.com/smazovec/vsconfigurator/issues/5#issuecomment-6539036004).
 Исполнитель: Codex. Предметный владелец: Мастер (`atlas`). Решение и запуск: Сергей.
 База: `424238426243565bafe96f9e7611e18feeadfd4e`, `main`.
