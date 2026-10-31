@@ -104,13 +104,14 @@ import { CfDumpFinding, DumpValidationDiagnostics } from './dumpValidationDiagno
 import { edtProjectDirOf, metadataCompileTarget, sourceDirectoryOf, type MetadataCompileKind } from './metadataCompileTarget';
 import { ArtifactCommands } from '../../commands/artifactCommands';
 import { pickProjectDirectory } from '../../commands/baseCommand';
+import type { MetadataTreeSelection } from './metadataNavigatorModel';
 import { projectRelativePath } from '../../commands/projectScope';
 
 export interface RegisterMetadataFeatureParams {
 	context: vscode.ExtensionContext;
 	metadataTreeProvider: MetadataTreeDataProvider;
-	metadataTreeView: vscode.TreeView<vscode.TreeItem>;
-	metadataSearchProvider: MetadataSearchViewProvider;
+	metadataTreeView: MetadataTreeSelection;
+	metadataSearchProvider: Pick<MetadataSearchViewProvider, 'clear' | 'showQuery'>;
 	metadataFilterProvider: MetadataFilterViewProvider;
 	propertyPaletteProvider: PropertyPaletteViewProvider;
 }

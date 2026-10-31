@@ -2,7 +2,8 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
-<style>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src {{CSP_SOURCE}}; style-src 'nonce-{{NONCE}}'; script-src 'nonce-{{NONCE}}';">
+<style nonce="{{NONCE}}">
 	body {
 		margin: 0;
 		padding: 4px 0 6px 0;
@@ -142,158 +143,32 @@
 		<label><input id="includeNested" type="checkbox" checked /><span>Включать объекты из подчинённых подсистем</span></label>
 		<label><input id="includeParents" type="checkbox" /><span>Включать объекты из родительских подсистем</span></label>
 	</div>
-	<script>
-		const vscodeApi = acquireVsCodeApi();
-		const treeRoot = document.getElementById('tree');
-		const searchInput = document.getElementById('q');
-		const clearSearchBtn = document.getElementById('clearSearch');
-		const nestedBox = document.getElementById('includeNested');
-		const parentsBox = document.getElementById('includeParents');
-		const ICON_LIGHT = '{{ICON_LIGHT}}';
-		const ICON_DARK = '{{ICON_DARK}}';
-		// Те же шевроны, что рисует VS Code в деревьях.
-		const CHEVRON_RIGHT = '<svg viewBox="0 0 16 16"><path d="M5.7 13.7L5 13l5-5-5-5 .7-.7L11.4 8z"/></svg>';
-		const CHEVRON_DOWN = '<svg viewBox="0 0 16 16"><path d="M7.976 10.072l4.357-4.357.62.618L8.284 11h-.618L3 6.333l.619-.618 4.357 4.357z"/></svg>';
-		let nodes = [];
-		let checked = new Set();
-		let collapsed = new Set();
-		let query = '';
-
-		function matches(node) {
-			if (!query) {
-				return true;
-			}
-			const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-			const name = node.name.toLowerCase();
-			return terms.every((term) => name.includes(term));
-		}
-
-		function subtreeMatches(node) {
-			return matches(node) || node.children.some(subtreeMatches);
-		}
-
-		function rowHtml(node, depth) {
-			const visibleChildren = node.children.filter(subtreeMatches);
-			const hasChildren = visibleChildren.length > 0;
-			// При поиске ветки с совпадениями раскрыты, иначе результат пришлось бы разворачивать руками.
-			const isCollapsed = query ? false : collapsed.has(node.key);
-			const twisty = hasChildren
-				? '<button class="twisty" data-twisty="' + escapeHtml(node.key) + '" title="Развернуть или свернуть">' +
-					(isCollapsed ? CHEVRON_RIGHT : CHEVRON_DOWN) +
-					'</button>'
-				: '<span class="twisty empty"></span>';
-			const icon =
-				'<img class="node-icon icon-light" src="' + ICON_LIGHT + '" alt="" />' +
-				'<img class="node-icon icon-dark" src="' + ICON_DARK + '" alt="" />';
-			const box =
-				'<input type="checkbox" data-key="' + escapeHtml(node.key) + '"' + (checked.has(node.key) ? ' checked' : '') + ' />';
-			const row =
-				'<div class="row" style="padding-left:' + (4 + depth * 8) + 'px">' +
-				twisty +
-				box +
-				'<label class="name" title="' + escapeHtml(node.name) + '">' + icon + '<span>' + escapeHtml(node.name) + '</span></label>' +
-				'</div>';
-			const children = hasChildren && !isCollapsed
-				? visibleChildren.map((child) => rowHtml(child, depth + 1)).join('')
-				: '';
-			return row + children;
-		}
-
-		function render() {
-			const visible = nodes.filter(subtreeMatches);
-			treeRoot.innerHTML = visible.length
-				? visible.map((node) => rowHtml(node, 0)).join('')
-				: '<div class="empty-note">' + (query ? 'Подсистемы не найдены' : 'Подсистем нет') + '</div>';
-			for (const box of treeRoot.querySelectorAll('input[type=checkbox]')) {
-				box.addEventListener('change', function () {
-					const key = box.getAttribute('data-key');
-					if (box.checked) {
-						checked.add(key);
-					} else {
-						checked.delete(key);
-					}
-					vscodeApi.postMessage({ type: 'toggle', key: key, checked: box.checked });
-				});
-			}
-			for (const btn of treeRoot.querySelectorAll('[data-twisty]')) {
-				btn.addEventListener('click', function () {
-					const key = btn.getAttribute('data-twisty');
-					if (collapsed.has(key)) {
-						collapsed.delete(key);
-					} else {
-						collapsed.add(key);
-					}
-					render();
-				});
-			}
-		}
-
-		function escapeHtml(text) {
-			return String(text).replace(/[&<>"']/g, function (ch) {
-				return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
-			});
-		}
-
-		function collectKeys(list, out) {
-			for (const node of list) {
-				if (node.children.length > 0) {
-					out.push(node.key);
-					collectKeys(node.children, out);
-				}
-			}
-			return out;
-		}
-
-		searchInput.addEventListener('input', function () {
-			query = searchInput.value.trim();
-			clearSearchBtn.classList.toggle('hidden', query.length === 0);
-			render();
-		});
-		searchInput.addEventListener('keydown', function (e) {
-			if (e.key === 'Escape' && searchInput.value) {
-				searchInput.value = '';
-				query = '';
-				clearSearchBtn.classList.add('hidden');
-				render();
-			}
-		});
-		clearSearchBtn.addEventListener('click', function () {
-			searchInput.value = '';
-			query = '';
-			clearSearchBtn.classList.add('hidden');
-			searchInput.focus();
-			render();
-		});
-		nestedBox.addEventListener('change', function () {
-			vscodeApi.postMessage({ type: 'option', option: 'includeNested', checked: nestedBox.checked });
-		});
-		parentsBox.addEventListener('change', function () {
-			vscodeApi.postMessage({ type: 'option', option: 'includeParents', checked: parentsBox.checked });
-		});
-
-		window.addEventListener('message', function (event) {
-			const msg = event.data;
-			if (!msg) {
-				return;
-			}
-			if (msg.type === 'tree') {
-				nodes = msg.nodes || [];
-				checked = new Set(msg.checked || []);
-				nestedBox.checked = !!(msg.options && msg.options.includeNested);
-				parentsBox.checked = !!(msg.options && msg.options.includeParents);
-				render();
-			}
-			if (msg.type === 'collapseAll') {
-				collapsed = new Set(collectKeys(nodes, []));
-				render();
-			}
-			if (msg.type === 'clearChecked') {
-				checked = new Set();
-				render();
-			}
-		});
-
-		vscodeApi.postMessage({ type: 'ready' });
-	</script>
-</body>
-</html>
+<div class="options"><button id="reset" type="button">Сбросить отбор</button><button id="collapse" type="button">Свернуть все</button></div>
+<script nonce="{{NONCE}}">
+const api=acquireVsCodeApi(), tree=document.getElementById('tree'), input=document.getElementById('q');
+const nested=document.getElementById('includeNested'),parents=document.getElementById('includeParents');
+let nodes=[],checked=new Set(),collapsed=new Set(),generation=-1;
+const send=message=>api.postMessage({...message,generation});
+const match=node=>node.name.toLocaleLowerCase().includes(input.value.trim().toLocaleLowerCase())||node.children.some(match);
+function render(){
+ const fragment=document.createDocumentFragment();
+ function row(node,depth){
+  if(!match(node))return;
+  const el=document.createElement('div');el.className='row';el.style.paddingLeft=(4+depth*8)+'px';
+  const twist=document.createElement('button');twist.className='twisty';twist.textContent=node.children.length?(collapsed.has(node.key)?'›':'⌄'):'';twist.setAttribute('aria-label','Развернуть / свернуть '+node.name);twist.disabled=!node.children.length;
+  twist.onclick=()=>{collapsed.has(node.key)?collapsed.delete(node.key):collapsed.add(node.key);render();};el.append(twist);
+  const label=document.createElement('label');label.className='name';
+  const box=document.createElement('input');box.type='checkbox';box.checked=checked.has(node.key);box.onchange=()=>{box.checked?checked.add(node.key):checked.delete(node.key);send({type:'toggle',key:node.key,checked:box.checked});};
+  label.append(box);
+  for(const theme of ['light','dark']){const icon=document.createElement('img');icon.className='node-icon icon-'+theme;icon.alt='';icon.src=theme==='light'?'{{ICON_LIGHT}}':'{{ICON_DARK}}';label.append(icon);}
+  const text=document.createElement('span');text.textContent=node.name;label.append(text);el.append(label);fragment.append(el);
+  if(input.value||!collapsed.has(node.key))node.children.forEach(child=>row(child,depth+1));
+ }
+ nodes.forEach(node=>row(node,0));if(!fragment.childNodes.length){const empty=document.createElement('p');empty.textContent='Подсистемы не найдены';fragment.append(empty);}tree.replaceChildren(fragment);
+}
+input.oninput=render;document.getElementById('clearSearch').onclick=()=>{input.value='';render();};
+nested.onchange=()=>send({type:'option',option:'includeNested',checked:nested.checked});parents.onchange=()=>send({type:'option',option:'includeParents',checked:parents.checked});
+document.getElementById('reset').onclick=()=>send({type:'clear'});document.getElementById('collapse').onclick=()=>send({type:'collapse'});
+window.addEventListener('message',({data:m})=>{if(m.type==='tree'){generation=m.generation;nodes=m.nodes;checked=new Set(m.checked);nested.checked=m.options.includeNested;parents.checked=m.options.includeParents;render();}if(m.type==='clearChecked'){checked.clear();render();}if(m.type==='collapseAll'){const visit=ns=>ns.forEach(n=>{collapsed.add(n.key);visit(n.children);});visit(nodes);render();}});
+api.postMessage({type:'ready'});
+</script></body></html>

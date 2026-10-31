@@ -1,4 +1,4 @@
-// Изолированный smoke-тест штатных команд view в VS Code, без проекта и md-sparrow.
+// Изолированный smoke-тест focus-ID и единственного навигатора в VS Code.
 const path = require('node:path');
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
@@ -17,6 +17,15 @@ exports.run = async function () {
 	await vscode.commands.executeCommand('setContext', '1c-platform-tools.is1CProject', true);
 	await vscode.commands.executeCommand('1c-platform-tools-metadata-search.focus');
 	await vscode.commands.executeCommand('1c-platform-tools-metadata-filters.focus');
+	await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+	await vscode.commands.executeCommand('1c-platform-tools-metadata-tree.focus');
+	if (process.env.NAVIGATOR_GUI_WORKSPACE) {
+		fs.writeFileSync(path.join(__dirname, '../build/gui-ready'), 'ready');
+		const until = Date.now() + 240000;
+		while (!fs.existsSync(path.join(__dirname, '../build/gui-done')) && Date.now() < until) {
+			await new Promise(resolve => setTimeout(resolve, 250));
+		}
+	}
 	await vscode.commands.executeCommand('workbench.view.explorer');
 	await vscode.commands.executeCommand('setContext', '1c-platform-tools.is1CProject', false);
 	console.log(`NAVIGATOR_SMOKE_OK: VS Code ${vscode.version}; расширение активировано, search.focus, filters.focus и Explorer выполнены`);
@@ -25,13 +34,14 @@ exports.run = async function () {
 if (require.main === module) {
 	const { runTests } = require('@vscode/test-electron');
 	const root = path.resolve(__dirname, '..');
-	const workspace = path.join(root, '.vscode-test', 'navigator-smoke-workspace');
+	const workspace = process.env.NAVIGATOR_GUI_WORKSPACE || path.join(root, '.vscode-test', 'navigator-smoke-workspace');
 	fs.mkdirSync(workspace, { recursive: true });
 	runTests({
 		version: '1.125.0',
 		extensionDevelopmentPath: root,
 		extensionTestsPath: __filename,
 		launchArgs: [workspace, '--user-data-dir=' + path.join(root, '.vscode-test', 'navigator-smoke-profile'),
+			...(process.env.NAVIGATOR_GUI_WORKSPACE ? ['--remote-debugging-port=9333'] : []),
 			'--disable-extensions', '--skip-release-notes', '--skip-welcome', '--disable-workspace-trust'],
 	}).catch(error => { console.error(error); process.exitCode = 1; });
 }

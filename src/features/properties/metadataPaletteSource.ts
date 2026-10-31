@@ -46,6 +46,7 @@ import {
 } from './childNodePropertiesSpec';
 import type { PropertyPaletteState, PropertyPaletteViewProvider } from './propertyPaletteView';
 import { formDescriptorFileOf, templateDescriptorFileOf } from '../../shared/objectPaths';
+import type { MetadataTreeSelection } from '../metadata/metadataNavigatorModel';
 
 const log = logger.scope('metadata');
 
@@ -79,7 +80,7 @@ async function fileKey(filePath: string): Promise<string> {
 export interface MetadataPaletteSourceParams {
 	context: vscode.ExtensionContext;
 	metadataTreeProvider: MetadataTreeDataProvider;
-	metadataTreeView: vscode.TreeView<vscode.TreeItem>;
+	metadataTreeView: Pick<MetadataTreeSelection, 'selection' | 'onDidChangeSelection'>;
 	propertyPaletteProvider: PropertyPaletteViewProvider;
 	/** Смена текущего проекта; по умолчанию событие проектов рабочей области. */
 	projectChanges?: vscode.Event<unknown>;

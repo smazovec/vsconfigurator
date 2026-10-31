@@ -5,14 +5,12 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 suite('Стартовый навигатор метаданных', () => {
-	test('поиск раскрыт непосредственно перед штатным деревом, отбор изначально свёрнут, автооткрытие включено', () => {
+	test('единственный webview содержит навигатор, автооткрытие включено', () => {
 		const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../../package.json'), 'utf8'));
 		const views = pkg.contributes.views['1c-platform-tools-metadata'] as Array<{ id: string; type?: string; visibility?: string }>;
-		assert.strictEqual(views[0].id, '1c-platform-tools-metadata-search');
-		assert.strictEqual(views[0].visibility, 'visible');
-		assert.strictEqual(views[1].id, '1c-platform-tools-metadata-tree');
-		assert.strictEqual(views[1].type, undefined, 'дерево не заменено webview');
-		assert.strictEqual(views[2].visibility, 'collapsed');
+		assert.strictEqual(views.length, 1);
+		assert.strictEqual(views[0].id, '1c-platform-tools-metadata-tree');
+		assert.strictEqual(views[0].type, 'webview');
 		const config = pkg.contributes.configuration.find((section: { id: string }) => section.id === '1c-platform-tools.metadata');
 		assert.strictEqual(config.properties['1c-platform-tools.metadata.autoOpen'].default, true);
 	});
@@ -46,9 +44,9 @@ suite('Стартовый навигатор метаданных', () => {
 		assert.strictEqual(calls, 1);
 	});
 
-	test('VS Code регистрирует штатные focus-команды обоих contributed webview', async () => {
+	test('VS Code регистрирует focus единственного contributed webview', async () => {
 		const commands = await vscode.commands.getCommands(true);
-		for (const view of ['1c-platform-tools-metadata-search', '1c-platform-tools-metadata-filters']) {
+		for (const view of ['1c-platform-tools-metadata-tree']) {
 			assert.ok(commands.includes(`${view}.focus`), `нет штатной команды ${view}.focus`);
 		}
 	});

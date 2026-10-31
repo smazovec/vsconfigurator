@@ -251,35 +251,10 @@
       ],
       "1c-platform-tools-metadata": [
         {
-          "type": "webview",
-          "id": "1c-platform-tools-metadata-search",
-          "name": "Поиск",
-          "when": "1c-platform-tools.is1CProject == true",
-          "initialSize": 1,
-          "visibility": "visible"
-        },
-        {
           "id": "1c-platform-tools-metadata-tree",
-          "name": "Дерево",
-          "contextualTitle": "Дерево метаданных",
-          "when": "1c-platform-tools.is1CProject == true",
-          "initialSize": 30
-        },
-        {
-          "id": "1c-platform-tools-metadata-filters",
-          "name": "Фильтры",
-          "contextualTitle": "Фильтры метаданных",
-          "when": "1c-platform-tools.is1CProject == true",
-          "visibility": "collapsed",
-          "initialSize": 6,
-          "type": "webview"
-        },
-        {
-          "id": "1c-platform-tools-metadata-help",
-          "name": "Помощь и поддержка",
-          "contextualTitle": "Помощь и поддержка",
-          "when": "1c-platform-tools.is1CProject == true",
-          "visibility": "collapsed"
+          "name": "Метаданные",
+          "type": "webview",
+          "when": "1c-platform-tools.is1CProject == true"
         }
       ],
       "1c-platform-tools-properties": [
@@ -2314,6 +2289,12 @@
         "command": "1c-platform-tools.editors.save",
         "title": "Сохранить",
         "category": "1С: Редакторы"
+      },
+      {
+        "command": "1c-platform-tools.metadata.collapseAll",
+        "title": "Свернуть все",
+        "category": "1С: Метаданные",
+        "icon": "$(collapse-all)"
       }
     ],
     "viewsWelcome": [
@@ -2879,6 +2860,10 @@
         {
           "command": "1c-platform-tools.project.copyPath",
           "when": "false"
+        },
+        {
+          "command": "1c-platform-tools.metadata.collapseAll",
+          "when": "false"
         }
       ],
       "testing/item/context": [
@@ -3096,16 +3081,6 @@
           "group": "navigation@30"
         },
         {
-          "command": "1c-platform-tools.metadata.refresh",
-          "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@30"
-        },
-        {
-          "command": "1c-platform-tools.metadata.clearSubsystemFilter",
-          "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.metadata.subsystemFilterActive",
-          "group": "navigation@5"
-        },
-        {
           "submenu": "1c-platform-tools.metadata.overflowMenu",
           "when": "view == 1c-platform-tools-metadata-tree",
           "group": "navigation@20"
@@ -3134,6 +3109,11 @@
           "command": "1c-platform-tools.project.select",
           "when": "view == 1c-platform-tools-metadata-tree && 1c-platform-tools.project.multiple",
           "group": "navigation@19"
+        },
+        {
+          "command": "1c-platform-tools.metadata.collapseAll",
+          "when": "view == 1c-platform-tools-metadata-tree",
+          "group": "metadata@1"
         }
       ],
       "view/item/context": [

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { logger } from '../shared/logger';
-import { METADATA_SEARCH_VIEW_ID } from '../features/metadata/metadataSearchView';
+import { METADATA_NAVIGATOR_VIEW_ID } from '../features/metadata/metadataNavigatorView';
 import { DependenciesCommands } from '../commands/dependenciesCommands';
 import { openGetStartedWalkthrough } from '../features/tools/getStartedView';
 import {
@@ -39,7 +39,7 @@ export function registerMetadataStartupNavigation(): vscode.Disposable {
 		() => vscode.workspace.getConfiguration('1c-platform-tools.metadata').get<boolean>('autoOpen', true),
 		async () => {
 			await vscode.commands.executeCommand('setContext', IS_1C_PROJECT_CONTEXT, true);
-			await vscode.commands.executeCommand(`${METADATA_SEARCH_VIEW_ID}.focus`);
+			await vscode.commands.executeCommand(`${METADATA_NAVIGATOR_VIEW_ID}.focus`);
 		}
 	);
 	const sync = (): void => {

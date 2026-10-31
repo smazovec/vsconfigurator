@@ -1,3 +1,4 @@
+import { navigatorWhen } from '../../features/metadata/metadataNavigatorMenu';
 import * as assert from 'node:assert';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
@@ -26,20 +27,7 @@ function contributes(): {
  * перестаёт срабатывать.
  */
 function evaluateWhen(expression: string, viewItem: string): boolean {
-	const regexLiteral = String.raw`\/(?:[^/\\]|\\.)*\/[a-z]*`;
-	let code = expression;
-	code = code.replace(/1c-platform-tools\.[A-Za-z.]+/g, 'false');
-	code = code.replace(new RegExp(`(\\S+)\\s*=~\\s*(${regexLiteral})`, 'g'), (_, left, re) => `(${re}.test(${left}))`);
-	code = code.replace(new RegExp(`(\\S+)\\s*!~\\s*(${regexLiteral})`, 'g'), (_, left, re) => `(!${re}.test(${left}))`);
-	code = code.replace(/(==|!=)\s*'([^']*)'/g, (_, op, value) => `${op} ${JSON.stringify(value)}`);
-	code = code.replace(/(==|!=)\s*([A-Za-z0-9_.-]+)/g, (_, op, value) =>
-		value === 'true' || value === 'false' ? `${op} ${value}` : `${op} ${JSON.stringify(value)}`
-	);
-	code = code.replace(/\bview\b(?!Item)/g, JSON.stringify(VIEW));
-	code = code.replace(/\bviewItem\b/g, JSON.stringify(viewItem));
-	code = code.replace(/([^=!<>])==([^=])/g, '$1===$2');
-	code = code.replace(/([^!])!=([^=])/g, '$1!==$2');
-	return Boolean(new Function(`"use strict";return (${code});`)());
+ return navigatorWhen(expression, { view: VIEW, viewItem, '1c-platform-tools.metadata.subsystemFilterActive': false });
 }
 
 /** Пункты контекстного меню узла, в порядке групп. */

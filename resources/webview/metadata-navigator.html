@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src {{CSP_SOURCE}}; style-src {{CSP_SOURCE}}; script-src 'nonce-{{NONCE}}';">
+	<link rel="stylesheet" href="{{STYLE_URI}}">
+</head>
+<body>
+	<header>
+		<div id="toolbar" role="toolbar" aria-label="Действия с метаданными">
+<button class="tool" data-action="add" title="Добавить" aria-label="Добавить" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12"/></svg></button>
+<button class="tool" data-action="open" title="Открыть / изменить" aria-label="Открыть / изменить" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 10 7-7 3 3-7 7-4 1zM9 4l3 3"/></svg></button>
+<button class="tool" data-action="duplicate" title="Дублировать" aria-label="Дублировать" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 5h7v9H6zM3 11H2V2h7v1"/></svg></button>
+<button class="tool" data-action="delete" title="Удалить" aria-label="Удалить" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M6 4V2h4v2M4 4l1 10h6l1-10M7 6v6M9 6v6"/></svg></button>
+<button class="tool" data-action="refresh" title="Обновить дерево" aria-label="Обновить дерево"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 7a5 5 0 1 0-1 4M13 2v5H8"/></svg></button>
+<button class="tool" data-action="filters" title="Отбор по подсистемам" aria-label="Отбор по подсистемам" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12L9 8v5l-2 1V8z"/></svg></button>
+<button class="tool" data-action="clearFilter" title="Снять отбор по подсистемам" aria-label="Снять отбор по подсистемам" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3 3 13"/></svg></button>
+		</div>
+		<div class="search"><svg class="search-icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.5"/><path d="m10 10 4 4"/></svg><input id="query" aria-label="Поиск по имени и синониму" placeholder="Имя или синоним…" autocomplete="off"><button id="clear" title="Очистить поиск" aria-label="Очистить поиск">×</button></div>
+		<div id="status" role="status" hidden></div>
+	</header>
+	<div id="tree" role="tree" aria-label="Метаданные" tabindex="0"><div id="canvas"></div></div>
+	<div id="menu" role="menu" aria-label="Действия узла" hidden></div>
+	<script nonce="{{NONCE}}" src="{{SCRIPT_URI}}"></script>
+</body>
+</html>
