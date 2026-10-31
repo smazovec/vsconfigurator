@@ -93,8 +93,9 @@ suite('кнопки в заголовках панелей', () => {
 		assert.deepStrictEqual(without, [], `кнопки без значка: ${without.join(', ')}`);
 	});
 
-	test('«Выбрать проект» стоит сразу слева от настроек', () => {
-		const entries = manifest().contributes.menus['view/title'] ?? [];
+	test('«Выбрать проект» стоит сразу слева от настроек или меню проекта', () => {
+		const menus = manifest().contributes.menus;
+		const entries = menus['view/title'] ?? [];
 		const orderOf = (group: string | undefined) => Number(/^navigation@(\d+)$/.exec(group ?? '')?.[1] ?? NaN);
 		const viewOf = (when: string | undefined) => /view == ([\w.-]+)/.exec(when ?? '')?.[1];
 		const views = entries.filter((entry) => entry.command === '1c-platform-tools.project.select').map((entry) => viewOf(entry.when));
@@ -107,7 +108,12 @@ suite('кнопки в заголовках панелей', () => {
 				.sort((left, right) => left.order - right.order);
 			const select = buttons.findIndex((button) => button.id === '1c-platform-tools.project.select');
 			const next = buttons[select + 1];
-			assert.ok(next?.id.endsWith('.openSettings'), `${view}: справа от «Выбрать проект» ${next?.id}`);
+			if (view === '1c-platform-tools-metadata-tree') {
+				assert.strictEqual(next?.id, '1c-platform-tools.metadata.overflowMenu');
+				assert.ok(menus[next.id].some((entry) => entry.command === '1c-platform-tools.metadata.openSettings'));
+			} else {
+				assert.ok(next?.id.endsWith('.openSettings'), `${view}: справа от «Выбрать проект» ${next?.id}`);
+			}
 			assert.ok(buttons[select].order < next.order, `${view}: порядок совпадает с настройками`);
 			assert.ok(select === 0 || buttons[select - 1].order < buttons[select].order, `${view}: порядок совпадает с соседней кнопкой`);
 		}

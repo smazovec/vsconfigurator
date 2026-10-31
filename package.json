@@ -256,7 +256,14 @@
           "name": "Поиск",
           "when": "1c-platform-tools.is1CProject == true",
           "initialSize": 1,
-          "visibility": "collapsed"
+          "visibility": "visible"
+        },
+        {
+          "id": "1c-platform-tools-metadata-tree",
+          "name": "Дерево",
+          "contextualTitle": "Дерево метаданных",
+          "when": "1c-platform-tools.is1CProject == true",
+          "initialSize": 30
         },
         {
           "id": "1c-platform-tools-metadata-filters",
@@ -266,13 +273,6 @@
           "visibility": "collapsed",
           "initialSize": 6,
           "type": "webview"
-        },
-        {
-          "id": "1c-platform-tools-metadata-tree",
-          "name": "Дерево",
-          "contextualTitle": "Дерево метаданных",
-          "when": "1c-platform-tools.is1CProject == true",
-          "initialSize": 30
         },
         {
           "id": "1c-platform-tools-metadata-help",
@@ -3096,24 +3096,9 @@
           "group": "navigation@30"
         },
         {
-          "submenu": "1c-platform-tools.metadata.createMenu",
-          "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@0"
-        },
-        {
-          "command": "1c-platform-tools.metadata.validateDump",
-          "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@1"
-        },
-        {
           "command": "1c-platform-tools.metadata.refresh",
           "when": "view == 1c-platform-tools-metadata-tree",
           "group": "navigation@30"
-        },
-        {
-          "command": "1c-platform-tools.metadata.er.openCanvas",
-          "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@4"
         },
         {
           "command": "1c-platform-tools.metadata.clearSubsystemFilter",
@@ -3123,7 +3108,7 @@
         {
           "submenu": "1c-platform-tools.metadata.overflowMenu",
           "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@40"
+          "group": "navigation@20"
         },
         {
           "command": "1c-platform-tools.metadata.filters.reset",
@@ -3134,11 +3119,6 @@
           "command": "1c-platform-tools.metadata.filters.collapseAll",
           "when": "view == 1c-platform-tools-metadata-filters",
           "group": "navigation@12"
-        },
-        {
-          "command": "1c-platform-tools.metadata.openSettings",
-          "when": "view == 1c-platform-tools-metadata-tree",
-          "group": "navigation@20"
         },
         {
           "command": "1c-platform-tools.project.refresh",
@@ -3915,6 +3895,28 @@
           "group": "navigation@1"
         }
       ],
+      "1c-platform-tools.metadata.overflowMenu": [
+        {
+          "command": "1c-platform-tools.metadata.initEmptyCf",
+          "group": "1_create@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.initEmptyCfe",
+          "group": "1_create@2"
+        },
+        {
+          "command": "1c-platform-tools.metadata.validateDump",
+          "group": "2_project@1"
+        },
+        {
+          "command": "1c-platform-tools.metadata.er.openCanvas",
+          "group": "2_project@2"
+        },
+        {
+          "command": "1c-platform-tools.metadata.openSettings",
+          "group": "3_settings"
+        }
+      ],
       "editor/title/context": [
         {
           "command": "1c-platform-tools.metadata.revealInTree",
@@ -4480,6 +4482,11 @@
         "id": "1c-platform-tools.metadata",
         "order": 4,
         "properties": {
+          "1c-platform-tools.metadata.autoOpen": {
+            "type": "boolean",
+            "default": true,
+            "description": "Открывать навигатор метаданных один раз при первом обнаружении проекта 1С в окне. Выключите, чтобы сохранять выбранный стартовый раздел VS Code."
+          },
           "1c-platform-tools.metadata.er.path.export": {
             "type": "string",
             "default": "docs/schemas",

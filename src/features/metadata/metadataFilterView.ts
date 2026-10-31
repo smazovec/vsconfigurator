@@ -111,9 +111,18 @@ export class MetadataFilterViewProvider implements vscode.WebviewViewProvider {
 
 	/** Снимает флажки и сбрасывает отбор. */
 	clear(): void {
+		if (this._applyTimer) {
+			clearTimeout(this._applyTimer);
+			this._applyTimer = undefined;
+		}
 		this._checked.clear();
 		void this._view?.webview.postMessage({ type: 'clearChecked' });
-		this.scheduleApply();
+		this._onSelectionChanged({
+			roots: this._roots,
+			checkedPaths: new Set(),
+			includeNested: this._options.includeNested,
+			includeParents: this._options.includeParents,
+		});
 	}
 
 	/**

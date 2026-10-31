@@ -12,6 +12,7 @@ import { registerDebugFeature } from '../features/debug/registerDebugFeature';
 import {
 	detectAndSetInitialProjectContext,
 	registerProjectCreatedHandler,
+	registerMetadataStartupNavigation,
 	runPostOpenProjectWorkflow,
 } from './projectLifecycle';
 import { registerCoreCommands } from './registerCoreCommands';
@@ -142,6 +143,7 @@ export async function bootstrapApp(context: vscode.ExtensionContext): Promise<vo
 	runPostOpenProjectWorkflow(context, () => commands.dependencies.installDependencies());
 
 	const { todoFeatureDisposables } = registerTodoFlow(context, isProjectRef);
+	context.subscriptions.push(registerMetadataStartupNavigation());
 
 	context.subscriptions.push(
 		...helpAndSettingsDisposables,

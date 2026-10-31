@@ -1955,7 +1955,7 @@ export function registerMetadataFeature(
 			}
 		),
 		registerMetadataCommand('1c-platform-tools.metadata.clearSubsystemFilter', async () => {
-			metadataTreeProvider.clearSubsystemFilter();
+			metadataFilterProvider.clear();
 		}),
 		registerMetadataCommand(
 			'1c-platform-tools.metadata.copyObjectName',

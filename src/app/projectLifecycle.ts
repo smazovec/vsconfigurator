@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import { logger } from '../shared/logger';
+import { METADATA_SEARCH_VIEW_ID } from '../features/metadata/metadataSearchView';
 import { DependenciesCommands } from '../commands/dependenciesCommands';
 import { openGetStartedWalkthrough } from '../features/tools/getStartedView';
 import {
@@ -12,6 +14,42 @@ import {
 
 function sameRoot(left: string | undefined, right: string | undefined): boolean {
 	return left === undefined || right === undefined ? left === right : sameProjectRoot(left, right);
+}
+
+/** Первое обнаружение расходует попытку даже при выключенной настройке или ошибке показа. */
+export function createMetadataStartupOpener(
+	enabled: () => boolean,
+	open: () => Thenable<unknown>
+): (projectPresent: boolean) => Promise<void> {
+	let attempted = false;
+	return async (projectPresent) => {
+		if (!projectPresent || attempted) {
+			return;
+		}
+		attempted = true;
+		if (enabled()) {
+			await open();
+		}
+	};
+}
+
+/** Разовое открытие контейнера штатной focus-командой contributed view, без ожидания md-sparrow. */
+export function registerMetadataStartupNavigation(): vscode.Disposable {
+	const open = createMetadataStartupOpener(
+		() => vscode.workspace.getConfiguration('1c-platform-tools.metadata').get<boolean>('autoOpen', true),
+		async () => {
+			await vscode.commands.executeCommand('setContext', IS_1C_PROJECT_CONTEXT, true);
+			await vscode.commands.executeCommand(`${METADATA_SEARCH_VIEW_ID}.focus`);
+		}
+	);
+	const sync = (): void => {
+		void open(hasProjects()).catch((error: unknown) => {
+			logger.scope('метаданные').warn(`Не удалось открыть навигатор: ${String(error)}`);
+		});
+	};
+	const subscription = onDidChangeProjects(sync);
+	sync();
+	return subscription;
 }
 
 export interface RefreshableProvider {

@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import {
 	MetadataLeafTreeItem,
+	MetadataObjectNodeTreeItem,
+	MetadataObjectSectionTreeItem,
 	MetadataSourceTreeItem,
 	MetadataTreeDataProvider,
 } from './metadataTreeView';
@@ -8,6 +10,8 @@ import { METADATA_SEARCH_VIEW_ID, MetadataSearchViewProvider } from './metadataS
 import { METADATA_FILTERS_VIEW_ID, MetadataFilterViewProvider, type FilterSelection } from './metadataFilterView';
 import { computeSubsystemFilter } from './metadataSubsystemFilter';
 import { bindProjectDescription } from '../projects/projectViewDescription';
+import { MetadataToolbarSelection, metadataObjectCommands } from './metadataToolbar';
+import { onDidChangeCurrentProject } from '../../shared/workspaceProjects';
 
 /** Отмеченные подсистемы применяются сразу: пустой набор снимает отбор. */
 function applyFilterSelection(metadataTreeProvider: MetadataTreeDataProvider, selection: FilterSelection): void {
@@ -80,15 +84,63 @@ export function registerMetadataView(
 		})
 	);
 
+	const toolbar = new MetadataToolbarSelection(
+		(item) => {
+			if (!metadataTreeProvider.getCachedTree()) {
+				return {};
+			}
+			let source = item instanceof MetadataObjectNodeTreeItem || item instanceof MetadataObjectSectionTreeItem
+				? item.owner as vscode.TreeItem : item;
+			while (source && !(source instanceof MetadataSourceTreeItem)) {
+				source = metadataTreeProvider.getParent(source);
+			}
+			return metadataObjectCommands(item, source, vscode.workspace.isTrusted && vscode.workspace.fs.isWritableFileSystem('file') === true);
+		},
+		(id, item) => vscode.commands.executeCommand(id, item)
+	);
 	const metadataSearchProvider = new MetadataSearchViewProvider(
 		context.extensionUri,
 		(query) => {
 			metadataTreeProvider.setTextFilter(query);
 		},
-		() => metadataTreeProvider.getTextFilter() ?? ''
+		() => metadataTreeProvider.getTextFilter() ?? '',
+		{
+			state: () => ({ ...toolbar.state(), filterCaption: metadataTreeProvider.getSubsystemFilterCaption() }),
+			run: async (action, revision) => {
+				if (action === 'refresh') {
+					await vscode.commands.executeCommand('1c-platform-tools.metadata.refresh');
+				} else if (action === 'filters') {
+					await vscode.commands.executeCommand(`${METADATA_FILTERS_VIEW_ID}.focus`);
+				} else if (action === 'clearFilter') {
+					await vscode.commands.executeCommand('1c-platform-tools.metadata.clearSubsystemFilter');
+				} else {
+					await toolbar.run(action, revision);
+				}
+			},
+		}
 	);
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(METADATA_SEARCH_VIEW_ID, metadataSearchProvider)
+	);
+	context.subscriptions.push(
+		metadataTreeView.onDidChangeSelection(() => {
+			toolbar.select(metadataTreeView.selection.length === 1 ? metadataTreeView.selection[0] : undefined);
+			metadataSearchProvider.updateToolbar();
+		}),
+		// Перестроенное дерево может содержать уже другие экземпляры узлов.
+		metadataTreeProvider.onDidChangeTreeData(() => {
+			toolbar.select(undefined);
+			metadataSearchProvider.updateToolbar();
+		}),
+		onDidChangeCurrentProject(() => {
+			toolbar.select(undefined);
+			metadataSearchProvider.updateToolbar();
+		}),
+		metadataTreeView.onDidChangeVisibility(({ visible }) => {
+			if (visible) {
+				metadataSearchProvider.show();
+			}
+		})
 	);
 
 	const metadataFilterProvider = new MetadataFilterViewProvider(context, metadataTreeProvider, (selection) => {

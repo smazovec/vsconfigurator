@@ -133,6 +133,18 @@ suite('метаданные: смена проекта', () => {
 		assert.strictEqual(await provider.locateFile(path.join(FIRST, 'src', 'cf', 'Catalogs', 'Нет.xml'), FIRST), undefined);
 	});
 
+	test('очистка отбора применяется сразу и отменяет отложенные отметки', async () => {
+		const selections: FilterSelection[] = [];
+		const filter = new MetadataFilterViewProvider(createMockExtensionContext(), {} as MetadataTreeDataProvider,
+			(selection) => selections.push(selection));
+		(filter as unknown as { onMessage(message: unknown): void }).onMessage({ type: 'toggle', key: 'Продажи.xml', checked: true });
+		filter.clear();
+		assert.strictEqual(selections.length, 1);
+		assert.strictEqual(selections[0].checkedPaths.size, 0);
+		await new Promise((resolve) => setTimeout(resolve, 400));
+		assert.strictEqual(selections.length, 1);
+	});
+
 	test('сброс отбора при смене проекта применяется сразу и отменяет отложенное применение', async () => {
 		const selections: FilterSelection[] = [];
 		const filter = new MetadataFilterViewProvider(
