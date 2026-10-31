@@ -52,11 +52,7 @@ export async function registerProjectsRuntime(
 		treeDataProvider: helpAndSupportProvider,
 		showCollapseAll: false,
 	});
-	const metadataHelpTreeView = vscode.window.createTreeView('1c-platform-tools-metadata-help', {
-		treeDataProvider: helpAndSupportProvider,
-		showCollapseAll: false,
-	});
-	context.subscriptions.push(helpAndSupportTreeView, metadataHelpTreeView);
+	context.subscriptions.push(helpAndSupportTreeView);
 
 	registerProjectsDecoration(context);
 	showStatusBar(projectStorage, oneCLocator);

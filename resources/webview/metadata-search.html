@@ -15,6 +15,18 @@
 		position: relative;
 		display: block;
 	}
+	.toolbar { display: flex; flex-wrap: wrap; gap: 2px; padding-bottom: 4px; }
+	.tool {
+		width: 26px; height: 26px; padding: 4px; border: 1px solid transparent;
+		border-radius: 3px; background: transparent; color: var(--vscode-icon-foreground, var(--vscode-foreground));
+		cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+	}
+	.tool svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.2; }
+	.tool:hover:enabled { background: var(--vscode-toolbar-hoverBackground); }
+	.tool:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+	.tool:disabled { opacity: .4; cursor: default; }
+	.tool.active { color: var(--vscode-inputOption-activeForeground); background: var(--vscode-inputOption-activeBackground); border-color: var(--vscode-inputOption-activeBorder); }
+	.tool[hidden] { display: none; }
 	input {
 		width: 100%;
 		box-sizing: border-box;
@@ -55,8 +67,17 @@
 </style>
 </head>
 <body>
+	<div class="toolbar" role="toolbar" aria-label="Действия с метаданными">
+		<button class="tool" data-action="add" title="Добавить" aria-label="Добавить" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12"/></svg></button>
+		<button class="tool" data-action="open" title="Открыть / изменить" aria-label="Открыть / изменить" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 10 7-7 3 3-7 7-4 1zM9 4l3 3"/></svg></button>
+		<button class="tool" data-action="duplicate" title="Дублировать" aria-label="Дублировать" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 5h7v9H6zM3 11H2V2h7v1"/></svg></button>
+		<button class="tool" data-action="delete" title="Удалить" aria-label="Удалить" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M6 4V2h4v2M4 4l1 10h6l1-10M7 6v6M9 6v6"/></svg></button>
+		<button class="tool" data-action="refresh" title="Обновить дерево" aria-label="Обновить дерево"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 7a5 5 0 1 0-1 4M13 2v5H8"/></svg></button>
+		<button class="tool" data-action="filters" title="Отбор по подсистемам" aria-label="Отбор по подсистемам" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12L9 8v5l-2 1V8z"/></svg></button>
+		<button class="tool" data-action="clearFilter" title="Снять отбор по подсистемам" aria-label="Снять отбор по подсистемам" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3 3 13"/></svg></button>
+	</div>
 	<label class="wrap">
-		<input id="q" type="text" placeholder="Поиск по метаданным…" autocomplete="off" />
+		<input id="q" type="text" placeholder="Имя или синоним…" aria-label="Поиск по имени и синониму" autocomplete="off" />
 		<button id="clear" class="clear hidden" type="button" title="Очистить">×</button>
 	</label>
 	<script>
@@ -64,6 +85,13 @@
 		const input = document.getElementById('q');
 		const clearBtn = document.getElementById('clear');
 		let timer;
+		let revision = -1;
+		const tools = document.querySelectorAll('[data-action]');
+		tools.forEach(function (button) {
+			button.addEventListener('click', function () {
+				vscodeApi.postMessage({ type: 'action', action: button.dataset.action, revision });
+			});
+		});
 		function send() {
 			clearBtn.classList.toggle('hidden', input.value.length === 0);
 			clearTimeout(timer);
@@ -88,12 +116,32 @@
 				return;
 			}
 			if (event.data.type === 'clear') {
+				clearTimeout(timer);
 				input.value = '';
 				clearBtn.classList.add('hidden');
 			}
 			if (event.data.type === 'setQuery') {
+				clearTimeout(timer);
 				input.value = event.data.query || '';
 				clearBtn.classList.toggle('hidden', input.value.length === 0);
+			}
+			if (event.data.type === 'toolbar') {
+				revision = event.data.revision;
+				tools.forEach(function (button) {
+					const action = button.dataset.action;
+					if (['add', 'open', 'duplicate', 'delete'].includes(action)) {
+						button.disabled = !event.data.enabled.includes(action);
+					}
+					if (action === 'filters') {
+						const active = !!event.data.filterCaption;
+						button.classList.toggle('active', active);
+						button.setAttribute('aria-pressed', String(active));
+						button.title = active ? 'Отбор: ' + event.data.filterCaption : 'Отбор по подсистемам';
+					}
+					if (action === 'clearFilter') {
+						button.hidden = !event.data.filterCaption;
+					}
+				});
 			}
 		});
 		vscodeApi.postMessage({ type: 'ready' });

@@ -5,11 +5,18 @@
  */
 import * as vscode from 'vscode';
 import { fillWebviewTemplate, loadWebviewTemplate } from '../../shared/webviewTemplate';
+import type { MetadataToolbarAction } from './metadataToolbar';
+import { logger } from '../../shared/logger';
 
 export const METADATA_SEARCH_VIEW_ID = '1c-platform-tools-metadata-search';
 
 /** Задержка перед перестроением дерева: дерево не дёргается на каждый символ. */
 const INPUT_DEBOUNCE_MS = 250;
+
+export interface MetadataSearchToolbar {
+	state(): { revision: number; enabled: string[]; filterCaption?: string };
+	run(action: MetadataToolbarAction, revision: number): Promise<void>;
+}
 
 export class MetadataSearchViewProvider implements vscode.WebviewViewProvider {
 	private _view: vscode.WebviewView | undefined;
@@ -21,7 +28,8 @@ export class MetadataSearchViewProvider implements vscode.WebviewViewProvider {
 	constructor(
 		private readonly _extensionUri: vscode.Uri,
 		private readonly _onQueryChanged: (query: string) => void,
-		private readonly _currentQuery: () => string = () => ''
+		private readonly _currentQuery: () => string = () => '',
+		private readonly _toolbar?: MetadataSearchToolbar
 	) {}
 
 	async resolveWebviewView(view: vscode.WebviewView): Promise<void> {
@@ -32,6 +40,16 @@ export class MetadataSearchViewProvider implements vscode.WebviewViewProvider {
 			const type = typeof msg === 'object' && msg !== null ? (msg as { type?: string }).type : undefined;
 			if (type === 'ready') {
 				this.showQuery(this._currentQuery());
+				this.updateToolbar();
+			}
+			if (type === 'action' && this._toolbar) {
+				const { action, revision } = msg as { action?: MetadataToolbarAction; revision?: number };
+				if (action && ['add', 'open', 'duplicate', 'delete', 'refresh', 'filters', 'clearFilter'].includes(action)
+					&& typeof revision === 'number') {
+					void this._toolbar.run(action, revision).catch((error: unknown) => {
+						logger.scope('метаданные').error(`Действие панели: ${String(error)}`);
+					});
+				}
 			}
 			if (type === 'search') {
 				const query = (msg as { query?: unknown }).query;
@@ -41,6 +59,17 @@ export class MetadataSearchViewProvider implements vscode.WebviewViewProvider {
 		view.onDidDispose(() => {
 			this._view = undefined;
 		});
+	}
+
+	/** Существующий view раскрывается без передачи ему фокуса. */
+	show(): void {
+		this._view?.show(true);
+	}
+
+	updateToolbar(): void {
+		if (this._toolbar) {
+			void this._view?.webview.postMessage({ type: 'toolbar', ...this._toolbar.state() });
+		}
 	}
 
 	/** Сбрасывает поле извне (например, командой очистки). */

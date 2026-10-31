@@ -49,4 +49,21 @@ suite('Поиск метаданных: поле после скрытия па�
 		receive({ type: 'search', query: 'Товары' });
 		assert.deepStrictEqual(queries, ['Товары']);
 	});
+
+	test('страница получает доступность, а мост пропускает только известные действия с версией', async () => {
+		const calls: unknown[][] = [];
+		const state = { revision: 12, enabled: ['open'], filterCaption: 'Продажи' };
+		const provider = new MetadataSearchViewProvider(EXTENSION_ROOT, () => undefined, () => '', {
+			state: () => state,
+			run: async (...args) => { calls.push(args); },
+		});
+		const { view, posted, receive } = fakeView();
+		await provider.resolveWebviewView(view);
+		receive({ type: 'ready' });
+		assert.deepStrictEqual(posted[1], { type: 'toolbar', ...state });
+		receive({ type: 'action', action: 'delete', revision: 12 });
+		receive({ type: 'action', action: 'delete' });
+		receive({ type: 'action', action: 'unregistered.command', revision: 12 });
+		assert.deepStrictEqual(calls, [['delete', 12]]);
+	});
 });
